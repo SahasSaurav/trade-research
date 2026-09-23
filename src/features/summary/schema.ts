@@ -8,5 +8,5 @@ const summarySchema = z.object({
 
 type SummaryData = z.infer<typeof summarySchema>;
 
-export { summarySchema };
 export type { SummaryData };
+export { summarySchema };

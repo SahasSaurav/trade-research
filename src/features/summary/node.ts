@@ -1,5 +1,4 @@
 import { SUMMARY_USER_MESSAGE } from "@src/features/summary/prompt.js";
-import { summarySchema } from "@src/features/summary/schema.js";
 import type { GraphState } from "@src/workflows/state.js";
 import type { ReactAgent } from "langchain";
 
@@ -17,9 +16,8 @@ function createSummaryNode(agent: ReactAgent) {
 				},
 			],
 		});
-		const responseContent = (result as any).structuredResponse || (result as any).content;
 		return {
-			summary: summarySchema.parse(responseContent),
+			summary: result.structuredResponse,
 		};
 	};
 }

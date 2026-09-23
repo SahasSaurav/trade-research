@@ -1,5 +1,4 @@
 import { SENTIMENT_USER_MESSAGE } from "@src/features/sentiment/prompt.js";
-import { sentimentSchema } from "@src/features/sentiment/schema.js";
 import type { GraphState } from "@src/workflows/state.js";
 import type { ReactAgent } from "langchain";
 
@@ -14,13 +13,8 @@ function createSentimentNode(agent: ReactAgent) {
 			],
 		});
 
-		// Handle response from both structured (Google) and raw (Ollama) models
-		// For structured output: result.structuredResponse
-		// For raw text: we need to extract the content from the response
-		const responseContent = (result as any).structuredResponse || (result as any).content;
-
 		return {
-			sentiment: sentimentSchema.parse(responseContent),
+			sentiment: result.structuredResponse,
 		};
 	};
 }

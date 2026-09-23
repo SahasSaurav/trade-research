@@ -1,19 +1,19 @@
-import { END, START, StateGraph } from "@langchain/langgraph";
-import type { ReactAgent } from "langchain";
+import { END, MemorySaver, START, StateGraph } from "@langchain/langgraph";
+import { createAnalystNode } from "@src/features/analyst/node.js";
 
 import { createAnalystRepairNode } from "@src/features/analyst/repairNode.js";
-import { createAnalystNode } from "@src/features/analyst/node.js";
+import { createDecisionNode } from "@src/features/decision/node.js";
+import { createSentimentNode } from "@src/features/sentiment/node.js";
 import { createSummaryNode } from "@src/features/summary/node.js";
 import { createValidationNode } from "@src/features/validation/node.js";
-import { createValuationNode } from "@src/features/valuation/node.js";
-import { createSentimentNode } from "@src/features/sentiment/node.js";
-import { createDecisionNode } from "@src/features/decision/node.js";
-import { WorkflowState } from "@src/workflows/state.js";
-import type { GraphState } from "@src/workflows/state.js";
 import type { ValidationResult } from "@src/features/validation/validate.js";
+import { createValuationNode } from "@src/features/valuation/node.js";
+import type { GraphState } from "@src/workflows/state.js";
+import { WorkflowState } from "@src/workflows/state.js";
+import type { ReactAgent } from "langchain";
 
 const MAX_ANALYST_ATTEMPTS = 2;
-const NODE_TIMEOUT_MS = 90_000;
+const NODE_TIMEOUT_MS = 99_999;
 
 type Route = "decisionAgent" | "analystRepair" | "summaryAgent" | "__end__";
 
@@ -66,7 +66,9 @@ function createGraph(
 		})
 		.addEdge("summaryAgent", END);
 
-	return graphBuilder.compile();
+	return graphBuilder.compile({
+		checkpointer: new MemorySaver(),
+	});
 }
 
 export { createGraph };

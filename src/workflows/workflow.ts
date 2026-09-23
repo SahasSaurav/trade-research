@@ -1,14 +1,14 @@
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
-import { ChatOpenAI } from "@langchain/openai";
 import { ChatOllama } from "@langchain/ollama";
+import { ChatOpenAI } from "@langchain/openai";
 import { TavilySearch } from "@langchain/tavily";
 
 import { loadConfig } from "@src/config/config.js";
 import { createAnalystAgent } from "@src/features/analyst/agent.js";
 import { createDecisionAgent } from "@src/features/decision/agent.js";
-import { createSummaryAgent } from "@src/features/summary/agent.js";
 import { createSentimentAgent } from "@src/features/sentiment/agent.js";
+import { createSummaryAgent } from "@src/features/summary/agent.js";
 import { createValuationAgent } from "@src/features/valuation/agent.js";
 import { createGraph } from "@src/workflows/graph.js";
 
@@ -29,7 +29,6 @@ function createModel(config: ReturnType<typeof loadConfig>): BaseChatModel {
 			return new ChatOpenAI({
 				model: config.model.name,
 				apiKey: config.openai.apiKey,
-				temperature: config.model.temperature,
 			});
 		case "xai":
 			return new ChatOpenAI({

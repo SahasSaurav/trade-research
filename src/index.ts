@@ -1,12 +1,16 @@
 import "dotenv/config";
 
 import { createWorkflow } from "@src/workflows/workflow.js";
+import { randomUUID } from "node:crypto";
 
 const ticker = "AAPL";
 
 const { workflow } = createWorkflow();
 
-const result = await workflow.invoke({ ticker });
+const result = await workflow.invoke(
+	{ ticker },
+	{ configurable: { thread_id: randomUUID() } },
+);
 
 console.log(`\n${"=".repeat(60)}`);
 console.log(`STOCK RESEARCH REPORT: ${ticker}`);

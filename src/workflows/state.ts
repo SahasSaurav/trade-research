@@ -15,5 +15,5 @@ const WorkflowState = Annotation.Root({
 
 type GraphState = typeof WorkflowState.State;
 
-export { WorkflowState };
 export type { GraphState };
+export { WorkflowState };

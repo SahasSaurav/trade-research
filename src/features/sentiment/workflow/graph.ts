@@ -1,6 +1,8 @@
 import { END, START, StateGraph } from "@langchain/langgraph";
 import { createGeopoliticalNode } from "@src/features/sentiment/subagents/geopolitical/node.js";
+import type { GeopoliticalResearch } from "@src/features/sentiment/subagents/geopolitical/schema.js";
 import { createNewsSentimentNode } from "@src/features/sentiment/subagents/news/node.js";
+import type { NewsSentimentResearch } from "@src/features/sentiment/subagents/news/schema.js";
 import { SentimentResearchState } from "@src/features/sentiment/workflow/state.js";
 import type { SentimentResearchStateType } from "@src/features/sentiment/workflow/state.js";
 import type { ReactAgent } from "langchain";
@@ -13,27 +15,9 @@ function createSentimentGraph(
 		.addNode("newsSentimentSubagent", createNewsSentimentNode(newsAgent))
 		.addNode("geopoliticalSubagent", createGeopoliticalNode(geopoliticalAgent))
 		.addNode("mergeSentimentResearch", (state: SentimentResearchStateType) => {
-			type NewsResearch = {
-				sentimentSources?: Array<{
-					source: string;
-					sentiment: "positive" | "neutral" | "negative";
-					date: string;
-					summary: string;
-					sourceUrl: string;
-				}>;
-				sourceUrls?: string[];
-				notes?: string;
-			};
-			type GeopoliticalResearch = {
-				geopoliticalRisks?: unknown[];
-				geopoliticalSummary?: string;
-				sourceUrls?: string[];
-				notes?: string;
-			};
-			const news = state.newsResearch as NewsResearch | undefined;
-			const geopolitical = state.geopoliticalResearch as
-				| GeopoliticalResearch
-				| undefined;
+			const news: NewsSentimentResearch | undefined = state.newsResearch;
+			const geopolitical: GeopoliticalResearch | undefined =
+				state.geopoliticalResearch;
 			const sources = news?.sentimentSources ?? [];
 			const sentimentValues = { positive: 1, neutral: 0, negative: -1 };
 			const sentimentScore = sources.length

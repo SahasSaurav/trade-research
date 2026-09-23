@@ -1,5 +1,5 @@
-import type { GraphState } from "@src/workflows/state.js";
 import { validateArtifacts } from "@src/features/validation/validate.js";
+import type { GraphState } from "@src/workflows/state.js";
 
 function createValidationNode() {
 	return async (state: GraphState) => {

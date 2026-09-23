@@ -1,8 +1,7 @@
-import { z } from "zod";
-
 import { analystReportSchema } from "@src/features/analyst/schema.js";
-import { valuationSchema } from "@src/features/valuation/schema.js";
 import { sentimentSchema } from "@src/features/sentiment/schema.js";
+import { valuationSchema } from "@src/features/valuation/schema.js";
+import { z } from "zod";
 
 const validationSchema = z.object({
 	pass: z.boolean(),

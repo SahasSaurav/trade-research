@@ -53,9 +53,10 @@ function createGraph(
 		.addEdge(START, "valuationAgent")
 		.addEdge(START, "analystAgent")
 		.addEdge(START, "sentimentAgent")
-		.addEdge("valuationAgent", "dataValidation")
-		.addEdge("analystAgent", "dataValidation")
-		.addEdge("sentimentAgent", "dataValidation")
+		.addEdge(
+			["valuationAgent", "analystAgent", "sentimentAgent"],
+			"dataValidation",
+		)
 		.addEdge("analystRepair", "dataValidation")
 		.addConditionalEdges("dataValidation", (state: GraphState): Route => {
 			const validation = state.validation as ValidationResult | undefined;

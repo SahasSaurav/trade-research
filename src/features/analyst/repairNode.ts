@@ -1,8 +1,7 @@
-import type { ReactAgent } from "langchain";
-
-import { analystReportSchema } from "@src/features/analyst/schema.js";
 import { ANALYST_USER_MESSAGE } from "@src/features/analyst/prompt.js";
+
 import type { GraphState } from "@src/workflows/state.js";
+import type { ReactAgent } from "langchain";
 
 function createAnalystRepairNode(agent: ReactAgent) {
 	return async (state: GraphState) => {
@@ -15,7 +14,7 @@ function createAnalystRepairNode(agent: ReactAgent) {
 			],
 		});
 		return {
-			analyst: analystReportSchema.parse(result.structuredResponse),
+			analyst: result.structuredResponse,
 			analystAttempts: (state.analystAttempts ?? 0) + 1,
 		};
 	};

@@ -1,5 +1,4 @@
 import { ANALYST_USER_MESSAGE } from "@src/features/analyst/prompt.js";
-import { analystReportSchema } from "@src/features/analyst/schema.js";
 import type { GraphState } from "@src/workflows/state.js";
 import type { ReactAgent } from "langchain";
 
@@ -13,9 +12,8 @@ function createAnalystNode(agent: ReactAgent) {
 				},
 			],
 		});
-		const responseContent = (result as any).structuredResponse || (result as any).content;
 		return {
-			analyst: analystReportSchema.parse(responseContent),
+			analyst: result.structuredResponse,
 		};
 	};
 }

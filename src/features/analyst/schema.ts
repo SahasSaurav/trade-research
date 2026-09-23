@@ -18,5 +18,5 @@ const analystReportSchema = z.object({
 
 type AnalystReportData = z.infer<typeof analystReportSchema>;
 
-export { analystReportSchema };
 export type { AnalystReportData };
+export { analystReportSchema };

@@ -22,9 +22,7 @@ const AppConfigSchema = z.object({
 		apiKey: z.string().min(1),
 	}),
 	ollama: z.object({
-		baseUrl: z
-			.string()
-			.default("http://localhost:11434"),
+		baseUrl: z.string().default("http://localhost:11434"),
 	}),
 	tavily: z.object({
 		apiKey: z.string().min(1),

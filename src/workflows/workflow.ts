@@ -7,7 +7,8 @@ import { TavilySearch } from "@langchain/tavily";
 import { loadConfig } from "@src/config/config.js";
 import { createAnalystAgent } from "@src/features/analyst/agent.js";
 import { createDecisionAgent } from "@src/features/decision/agent.js";
-import { createSentimentAgent } from "@src/features/sentiment/agent.js";
+import { createGeopoliticalAgent } from "@src/features/sentiment/subagents/geopolitical/agent.js";
+import { createNewsSentimentAgent } from "@src/features/sentiment/subagents/news/agent.js";
 import { createSummaryAgent } from "@src/features/summary/agent.js";
 import { createValuationAgent } from "@src/features/valuation/agent.js";
 import { createGraph } from "@src/workflows/graph.js";
@@ -63,14 +64,16 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 
 	const valuationAgent = createValuationAgent(model, search);
 	const analystAgent = createAnalystAgent(model, search);
-	const sentimentAgent = createSentimentAgent(model);
+	const newsSentimentAgent = createNewsSentimentAgent(model, search);
+	const geopoliticalAgent = createGeopoliticalAgent(model, search);
 	const decisionAgent = createDecisionAgent(model);
 	const summaryAgent = createSummaryAgent(model);
 
 	const workflow = createGraph(
 		valuationAgent,
 		analystAgent,
-		sentimentAgent,
+		newsSentimentAgent,
+		geopoliticalAgent,
 		decisionAgent,
 		summaryAgent,
 	);
@@ -80,7 +83,8 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 		search,
 		valuationAgent,
 		analystAgent,
-		sentimentAgent,
+		newsSentimentAgent,
+		geopoliticalAgent,
 		decisionAgent,
 		summaryAgent,
 		workflow,

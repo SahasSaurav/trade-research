@@ -21,7 +21,8 @@ type Route = "decisionAgent" | "analystRepair" | "summaryAgent" | "__end__";
 function createGraph(
 	valuationAgent: ReactAgent,
 	analystAgent: ReactAgent,
-	sentimentAgent: ReactAgent,
+	newsSentimentAgent: ReactAgent,
+	geopoliticalAgent: ReactAgent,
 	decisionAgent: ReactAgent,
 	summaryAgent: ReactAgent,
 ) {
@@ -32,9 +33,13 @@ function createGraph(
 		.addNode("analystAgent", createAnalystNode(analystAgent), {
 			timeout: NODE_TIMEOUT_MS,
 		})
-		.addNode("sentimentAgent", createSentimentNode(sentimentAgent), {
-			timeout: NODE_TIMEOUT_MS,
-		})
+		.addNode(
+			"sentimentAgent",
+			createSentimentNode(newsSentimentAgent, geopoliticalAgent),
+			{
+				timeout: NODE_TIMEOUT_MS,
+			},
+		)
 		.addNode("dataValidation", createValidationNode())
 		.addNode("analystRepair", createAnalystRepairNode(analystAgent), {
 			timeout: NODE_TIMEOUT_MS,

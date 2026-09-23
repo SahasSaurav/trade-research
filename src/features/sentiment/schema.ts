@@ -1,32 +1,6 @@
 import { z } from "zod";
+import { GeopoliticalEventSchema } from "@src/features/sentiment/subagents/geopolitical/schema.js";
 
-// Geopolitical event schema
-const GeopoliticalEventSchema = z.object({
-	event: z.string(),
-	affectedRegion: z.string(),
-	eventDate: z.string(),
-	sourceUrl: z.string().url(),
-	publisher: z.string(),
-	publicationDate: z.string(),
-	companyConnection: z.enum([
-		"revenue_exposure",
-		"operations",
-		"suppliers",
-		"customers",
-		"logistics",
-		"commodities",
-		"regulation",
-		"market_access",
-		"none",
-	]),
-	impact: z.enum(["positive", "negative", "neutral", "uncertain"]),
-	timeHorizon: z.enum(["immediate", "short_term", "long_term"]),
-	confidence: z.enum(["high", "medium", "low"]),
-	confidenceEvidence: z.string(),
-	status: z.enum(["confirmed", "proposed", "speculative"]),
-});
-
-// Sentiment output schema
 const sentimentSchema = z.object({
 	ticker: z.string(),
 	overallSentiment: z.enum(["positive", "neutral", "negative"]),
@@ -46,6 +20,5 @@ const sentimentSchema = z.object({
 	notes: z.string().nullable(),
 });
 
-export { GeopoliticalEventSchema, sentimentSchema };
-export type GeopoliticalEvent = z.infer<typeof GeopoliticalEventSchema>;
+export { sentimentSchema };
 export type SentimentData = z.infer<typeof sentimentSchema>;

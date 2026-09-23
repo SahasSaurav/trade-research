@@ -1,21 +1,15 @@
-import { SENTIMENT_USER_MESSAGE } from "@src/features/sentiment/prompt.js";
 import type { GraphState } from "@src/workflows/state.js";
+import { createSentimentGraph } from "@src/features/sentiment/graph.js";
 import type { ReactAgent } from "langchain";
 
-function createSentimentNode(agent: ReactAgent) {
+function createSentimentNode(
+	newsAgent: ReactAgent,
+	geopoliticalAgent: ReactAgent,
+) {
+	const graph = createSentimentGraph(newsAgent, geopoliticalAgent);
 	return async (state: GraphState) => {
-		const result = await agent.invoke({
-			messages: [
-				{
-					role: "user",
-					content: SENTIMENT_USER_MESSAGE(state.ticker),
-				},
-			],
-		});
-
-		return {
-			sentiment: result.structuredResponse,
-		};
+		const result = await graph.invoke({ ticker: state.ticker });
+		return { sentiment: result.sentiment };
 	};
 }
 

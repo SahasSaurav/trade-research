@@ -1,5 +1,4 @@
 import { VALUATION_USER_MESSAGE } from "@src/features/valuation/prompt.js";
-import { valuationSchema } from "@src/features/valuation/schema.js";
 import type { GraphState } from "@src/workflows/state.js";
 import type { ReactAgent } from "langchain";
 
@@ -13,9 +12,8 @@ function createValuationNode(agent: ReactAgent) {
 				},
 			],
 		});
-		const responseContent = (result as any).structuredResponse || (result as any).content;
 		return {
-			valuation: valuationSchema.parse(responseContent),
+			valuation: result.structuredResponse,
 		};
 	};
 }

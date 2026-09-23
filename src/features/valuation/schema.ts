@@ -14,5 +14,5 @@ const valuationSchema = z.object({
 
 type ValuationData = z.infer<typeof valuationSchema>;
 
-export { valuationSchema };
 export type { ValuationData };
+export { valuationSchema };

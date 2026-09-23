@@ -1,7 +1,8 @@
 import { END, MemorySaver, START, StateGraph } from "@langchain/langgraph";
-import { createAnalystNode } from "@src/features/analyst/node.js";
-
-import { createAnalystRepairNode } from "@src/features/analyst/repairNode.js";
+import {
+	createAnalystNode,
+	createAnalystRepairNode,
+} from "@src/features/analyst/node.js";
 import { createDecisionNode } from "@src/features/decision/node.js";
 import { createSentimentNode } from "@src/features/sentiment/node.js";
 import { createSummaryNode } from "@src/features/summary/node.js";

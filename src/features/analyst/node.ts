@@ -18,4 +18,21 @@ function createAnalystNode(agent: ReactAgent) {
 	};
 }
 
-export { createAnalystNode };
+function createAnalystRepairNode(agent: ReactAgent) {
+	return async (state: GraphState) => {
+		const result = await agent.invoke({
+			messages: [
+				{
+					role: "user",
+					content: ANALYST_USER_MESSAGE(state.ticker),
+				},
+			],
+		});
+		return {
+			analyst: result.structuredResponse,
+			analystAttempts: (state.analystAttempts ?? 0) + 1,
+		};
+	};
+}
+
+export { createAnalystNode, createAnalystRepairNode };

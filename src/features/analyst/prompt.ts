@@ -186,4 +186,16 @@ Requirements:
 
 Verify each report directly from the source URL. Cross-check that ratings and price targets are actually stated (not inferred).`;
 
-export { ANALYST_SYSTEM_PROMPT, ANALYST_USER_MESSAGE };
+const ANALYST_REPAIR_USER_MESSAGE = (ticker: string, issues: string[]) =>
+	`${ANALYST_USER_MESSAGE(ticker)}
+
+The previous analyst result failed validation. Correct these specific issues:
+${issues.map((issue) => `- ${issue}`).join("\n")}
+
+Return a corrected result. Do not invent reports or details to satisfy validation.`;
+
+export {
+	ANALYST_REPAIR_USER_MESSAGE,
+	ANALYST_SYSTEM_PROMPT,
+	ANALYST_USER_MESSAGE,
+};

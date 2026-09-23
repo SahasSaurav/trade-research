@@ -6,6 +6,9 @@ import { z } from "zod";
 const validationSchema = z.object({
 	pass: z.boolean(),
 	issues: z.array(z.string()),
+	analystIssues: z.array(z.string()),
+	valuationIssues: z.array(z.string()),
+	sentimentIssues: z.array(z.string()),
 });
 
 type ValidationResult = z.infer<typeof validationSchema>;
@@ -80,12 +83,17 @@ function validateArtifacts(
 	analyst: unknown,
 	sentiment: unknown,
 ): ValidationResult {
-	const issues = [
-		...validateValuationData(valuation),
-		...validateAnalystData(analyst),
-		...validateSentimentData(sentiment),
-	];
-	return { pass: issues.length === 0, issues };
+	const valuationIssues = validateValuationData(valuation);
+	const analystIssues = validateAnalystData(analyst);
+	const sentimentIssues = validateSentimentData(sentiment);
+	const issues = [...valuationIssues, ...analystIssues, ...sentimentIssues];
+	return {
+		pass: issues.length === 0,
+		issues,
+		analystIssues,
+		valuationIssues,
+		sentimentIssues,
+	};
 }
 
 export type { ValidationResult };

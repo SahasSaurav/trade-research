@@ -1,4 +1,7 @@
-import { ANALYST_USER_MESSAGE } from "@src/features/analyst/prompt.js";
+import {
+	ANALYST_REPAIR_USER_MESSAGE,
+	ANALYST_USER_MESSAGE,
+} from "@src/features/analyst/prompt.js";
 import type { GraphState } from "@src/workflows/state.js";
 import type { ReactAgent } from "langchain";
 
@@ -24,7 +27,11 @@ function createAnalystRepairNode(agent: ReactAgent) {
 			messages: [
 				{
 					role: "user",
-					content: ANALYST_USER_MESSAGE(state.ticker),
+					content: ANALYST_REPAIR_USER_MESSAGE(
+						state.ticker,
+						(state.validation as { analystIssues?: string[] } | undefined)
+							?.analystIssues ?? [],
+					),
 				},
 			],
 		});

@@ -60,10 +60,14 @@ function createGraph(
 		.addEdge("analystRepair", "dataValidation")
 		.addConditionalEdges("dataValidation", (state: GraphState): Route => {
 			const validation = state.validation as ValidationResult | undefined;
-			if (!validation?.pass) return "summaryAgent";
-			if ((state.analystAttempts ?? 0) < MAX_ANALYST_ATTEMPTS) {
+			if (!validation) return "summaryAgent";
+			if (
+				validation.analystIssues.length > 0 &&
+				(state.analystAttempts ?? 0) < MAX_ANALYST_ATTEMPTS
+			) {
 				return "analystRepair";
 			}
+			if (!validation.pass) return "summaryAgent";
 			return "decisionAgent";
 		})
 		.addConditionalEdges("decisionAgent", (state: GraphState): Route => {

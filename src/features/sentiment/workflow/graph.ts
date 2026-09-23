@@ -76,7 +76,16 @@ function createSentimentGraph(
 					geopoliticalRisks: geopolitical?.geopoliticalRisks ?? [],
 					geopoliticalSummary:
 						geopolitical?.geopoliticalSummary ??
-						"No verified geopolitical summary was returned.",
+						(state.geopoliticalError
+							? "Geopolitical research failed."
+							: "No material geopolitical risks were identified."),
+					researchStatus: {
+						news: news ? "complete" : "failed",
+						geopolitical: geopolitical ? "complete" : "failed",
+					},
+					researchErrors: [state.newsError, state.geopoliticalError].filter(
+						(error): error is string => Boolean(error),
+					),
 					dateChecked: new Date().toISOString().slice(0, 10),
 					sourceUrls: [
 						...new Set([

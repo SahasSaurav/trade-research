@@ -16,6 +16,11 @@ const sentimentSchema = z.object({
 	),
 	geopoliticalRisks: z.array(GeopoliticalEventSchema).nullable(),
 	geopoliticalSummary: z.string().nullable(),
+	researchStatus: z.object({
+		news: z.enum(["complete", "failed"]),
+		geopolitical: z.enum(["complete", "failed"]),
+	}),
+	researchErrors: z.array(z.string()),
 	dateChecked: z.string(),
 	sourceUrls: z.array(z.string().url()),
 	notes: z.string().nullable(),

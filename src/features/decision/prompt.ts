@@ -71,15 +71,17 @@ For each trigger, explain:
 - Synthesis of news sentiment, analyst tone, social sentiment, insider activity
 - Does sentiment reflect fundamentals or is it decoupled?
 - Use unknown when credible, current sentiment evidence is unavailable; do not treat missing evidence as neutral.
+- If the sentiment research status shows a failed branch, disclose it in key uncertainties and do not infer that no risks exist.
 
 ### 7. Sentiment Score (-1 to 1, or null when unknown)
 - Use the supplied score when available; do not invent a score when sentiment is unknown.
 - -1 = deeply bearish, +1 = deeply bullish, 0 = neutral
 
-### 8. Geopolitical Risk (low / medium / high)
+### 8. Geopolitical Risk (low / medium / high / unknown)
 - **low**: No material geopolitical risks, or risks are well-disclosed and priced in
 - **medium**: Identifiable geopolitical risks (e.g., supply chain concentration, regulatory risk, trade exposure) but likely managed or hedged
 - **high**: Material geopolitical risks (e.g., Taiwan concentration, emerging market exposure, sanctions risk) that could significantly impact valuation if realized
+- **unknown**: Geopolitical research failed or evidence is insufficient; do not treat missing research as no risk.
 
 ### 9. Geopolitical Factors
 - List 3-5 key factors supporting the geopolitical risk level

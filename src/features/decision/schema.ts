@@ -20,7 +20,7 @@ const decisionSchema = z.object({
 	),
 	sentimentAssessment: z.enum(["positive", "neutral", "negative", "unknown"]),
 	sentimentScore: z.number().min(-1).max(1).nullable(),
-	geopoliticalRisk: z.enum(["low", "medium", "high"]),
+	geopoliticalRisk: z.enum(["low", "medium", "high", "unknown"]),
 	geopoliticalFactors: z.array(z.string()),
 	keyRisks: z.array(z.string()),
 	keyUncertainties: z.array(z.string()),

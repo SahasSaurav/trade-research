@@ -1,20 +1,28 @@
 import { NEWS_SENTIMENT_USER_MESSAGE } from "@src/features/sentiment/subagents/news/prompt.js";
 import { newsSentimentResearchSchema } from "@src/features/sentiment/subagents/news/schema.js";
 import type { SentimentResearchStateType } from "@src/features/sentiment/workflow/state.js";
+import { runResearch } from "@src/features/sentiment/workflow/research.js";
 import type { ReactAgent } from "langchain";
 
 function createNewsSentimentNode(agent: ReactAgent) {
 	return async (state: SentimentResearchStateType) => {
-		const result = await agent.invoke({
-			messages: [
-				{ role: "user", content: NEWS_SENTIMENT_USER_MESSAGE(state.ticker) },
-			],
-		});
-		return {
-			newsResearch: newsSentimentResearchSchema.parse(
-				result.structuredResponse,
-			),
-		};
+		const outcome = await runResearch(
+			async () =>
+				(
+					await agent.invoke({
+						messages: [
+							{
+								role: "user",
+								content: NEWS_SENTIMENT_USER_MESSAGE(state.ticker),
+							},
+						],
+					})
+				).structuredResponse,
+			newsSentimentResearchSchema,
+		);
+		return outcome.error
+			? { newsResearch: undefined, newsError: outcome.error }
+			: { newsResearch: outcome.data, newsError: undefined };
 	};
 }
 

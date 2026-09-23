@@ -1,5 +1,4 @@
 import { DECISION_USER_MESSAGE } from "@src/features/decision/prompt.js";
-import { decisionSchema } from "@src/features/decision/schema.js";
 import type { GraphState } from "@src/workflows/state.js";
 import type { ReactAgent } from "langchain";
 
@@ -24,9 +23,8 @@ function createDecisionNode(agent: ReactAgent) {
 			],
 		});
 
-		const responseContent = (result as any).structuredResponse || (result as any).content;
 		return {
-			decision: decisionSchema.parse(responseContent),
+			decision: result.structuredResponse,
 			workflowStatus: "complete",
 		};
 	};

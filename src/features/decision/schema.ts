@@ -35,5 +35,5 @@ const decisionSchema = z.object({
 
 type DecisionData = z.infer<typeof decisionSchema>;
 
-export { decisionSchema };
 export type { DecisionData };
+export { decisionSchema };

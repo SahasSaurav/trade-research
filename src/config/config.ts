@@ -39,7 +39,7 @@ class ConfigError extends Error {
 }
 
 function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
-	const candidate = {
+	const configs = {
 		app: {
 			name: env.APP_NAME,
 			env: env.APP_ENV,
@@ -66,7 +66,7 @@ function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
 		},
 	};
 
-	const result = AppConfigSchema.safeParse(candidate);
+	const result = AppConfigSchema.safeParse(configs);
 	if (!result.success) {
 		throw new ConfigError(
 			`Invalid environment configuration:\n${z.prettifyError(result.error)}`,

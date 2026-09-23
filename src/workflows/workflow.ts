@@ -19,12 +19,6 @@ type WorkflowDeps = {
 
 function createModel(config: ReturnType<typeof loadConfig>): BaseChatModel {
 	switch (config.model.provider) {
-		case "ollama":
-			return new ChatOllama({
-				model: config.model.name,
-				baseUrl: config.ollama.baseUrl,
-				temperature: config.model.temperature,
-			});
 		case "openai":
 			return new ChatOpenAI({
 				model: config.model.name,
@@ -34,16 +28,21 @@ function createModel(config: ReturnType<typeof loadConfig>): BaseChatModel {
 			return new ChatOpenAI({
 				model: config.model.name,
 				apiKey: config.xai.apiKey,
-				temperature: config.model.temperature,
 				configuration: {
 					baseURL: "https://api.x.ai/v1",
 				},
 			});
 		case "google-genai":
-		default:
 			return new ChatGoogleGenerativeAI({
 				model: config.model.name,
 				apiKey: config.google.apiKey,
+				temperature: config.model.temperature,
+			});
+		case "ollama":
+		default:
+			return new ChatOllama({
+				model: config.model.name,
+				baseUrl: config.ollama.baseUrl,
 				temperature: config.model.temperature,
 			});
 	}
@@ -59,6 +58,7 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 		new TavilySearch({
 			tavilyApiKey: config.tavily.apiKey,
 			maxResults: 5,
+			timeRange: "day",
 		});
 
 	const valuationAgent = createValuationAgent(model, search);

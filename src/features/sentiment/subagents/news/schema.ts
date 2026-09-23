@@ -6,6 +6,7 @@ const newsSentimentResearchSchema = z.object({
 		z.object({
 			source: z.string(),
 			sentiment: z.enum(["positive", "neutral", "negative"]),
+			evidenceStrength: z.enum(["high", "medium", "low"]),
 			date: z.string(),
 			summary: z.string(),
 			sourceUrl: z.string().url(),

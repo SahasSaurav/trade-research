@@ -67,12 +67,13 @@ For each trigger, explain:
 - Why this level is meaningful (support/resistance, valuation multiple, catalyst realization)
 - What the investor should do when price hits this level
 
-### 6. Sentiment Assessment (positive / neutral / negative)
+### 6. Sentiment Assessment (positive / neutral / negative / unknown)
 - Synthesis of news sentiment, analyst tone, social sentiment, insider activity
 - Does sentiment reflect fundamentals or is it decoupled?
+- Use unknown when credible, current sentiment evidence is unavailable; do not treat missing evidence as neutral.
 
-### 7. Sentiment Score (-1 to 1)
-- Weighted average from sentiment analysis
+### 7. Sentiment Score (-1 to 1, or null when unknown)
+- Use the supplied score when available; do not invent a score when sentiment is unknown.
 - -1 = deeply bearish, +1 = deeply bullish, 0 = neutral
 
 ### 8. Geopolitical Risk (low / medium / high)

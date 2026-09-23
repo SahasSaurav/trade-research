@@ -5,6 +5,7 @@ Research recent, credible company-specific coverage, including earnings and guid
 For each distinct source, report:
 - source: publisher or platform
 - sentiment: positive, neutral, or negative
+- evidenceStrength: high, medium, or low, based on source credibility, specificity, and corroboration
 - date: publication or event date in YYYY-MM-DD format when available
 - summary: concise description of the evidence and its sentiment
 - sourceUrl: the exact URL consulted

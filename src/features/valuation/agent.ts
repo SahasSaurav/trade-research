@@ -1,33 +1,34 @@
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import type { TavilySearch } from "@langchain/tavily";
 import { VALUATION_SYSTEM_PROMPT } from "@src/features/valuation/prompt.js";
-import { valuationSchema } from "@src/features/valuation/schema.js";
 import { createAgent, toolStrategy } from "langchain";
-import { z } from "zod";
 
-// zod v4 emits JSON Schema natively; the OpenAPI 3.0 target matches Gemini's
-// `Schema` subset (single `type` plus `nullable`). The `~standard` marker is
-// dropped so langchain passes the schema through instead of re-converting it
-// to draft-2020-12, and the keywords the Gemini proto does not define are
-// removed. The Google GenAI SDK strips `additionalProperties` on the tool path.
-const { "~standard": _standard, ...valuationJsonSchema } = z.toJSONSchema(
-	valuationSchema,
-	{
-		target: "openapi-3.0",
-		override: ({ jsonSchema }) => {
-			delete jsonSchema.minimum;
-			delete jsonSchema.maximum;
-			delete jsonSchema.format;
-		},
+// Gemini Schema subset: single-string `type`, `nullable`, no `$schema`,
+// no `additionalProperties`, no `format`/`minimum`/`maximum`.
+const valuationResponseFormat = toolStrategy({
+	type: "object",
+	properties: {
+		ticker: { type: "string" },
+		dateChecked: { type: "string" },
+		trailingEPS: { type: "number", nullable: true },
+		forwardEPS: { type: "number", nullable: true },
+		trailingPE: { type: "number", nullable: true },
+		forwardPE: { type: "number", nullable: true },
+		pegRatio: { type: "number", nullable: true },
+		sourceUrls: { type: "array", items: { type: "string" } },
+		notes: { type: "string" },
 	},
-);
-
-const valuationResponseFormat = toolStrategy(
-	valuationJsonSchema as unknown as { type: "object" } & Record<
-		string,
-		unknown
-	>,
-);
+	required: [
+		"ticker",
+		"dateChecked",
+		"trailingEPS",
+		"forwardEPS",
+		"trailingPE",
+		"forwardPE",
+		"pegRatio",
+		"sourceUrls",
+	],
+});
 
 function createValuationAgent(model: BaseChatModel, search: TavilySearch) {
 	return createAgent({

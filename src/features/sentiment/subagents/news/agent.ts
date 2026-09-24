@@ -1,30 +1,47 @@
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import type { StructuredTool } from "@langchain/core/tools";
 import { NEWS_SENTIMENT_SYSTEM_PROMPT } from "@src/features/sentiment/subagents/news/prompt.js";
-import { newsSentimentResearchSchema } from "@src/features/sentiment/subagents/news/schema.js";
 import { createAgent, toolStrategy } from "langchain";
-import { z } from "zod";
 
-// zod v4 emits JSON Schema natively; the OpenAPI 3.0 target matches Gemini's
-// `Schema` subset (single `type` plus `nullable`). The `~standard` marker is
-// dropped so langchain passes the schema through instead of re-converting it
-// to draft-2020-12, and the keywords the Gemini proto does not define are
-// removed. The Google GenAI SDK strips `additionalProperties` on the tool path.
-const { "~standard": _standard, ...newsJsonSchema } = z.toJSONSchema(
-	newsSentimentResearchSchema,
-	{
-		target: "openapi-3.0",
-		override: ({ jsonSchema }) => {
-			delete jsonSchema.minimum;
-			delete jsonSchema.maximum;
-			delete jsonSchema.format;
+// Gemini Schema subset: single-string `type`, `nullable`, no `$schema`,
+// no `additionalProperties`, no `format`/`minimum`/`maximum`.
+const newsSentimentResponseFormat = toolStrategy({
+	type: "object",
+	properties: {
+		ticker: { type: "string" },
+		sentimentSources: {
+			type: "array",
+			items: {
+				type: "object",
+				properties: {
+					source: { type: "string" },
+					sentiment: {
+						type: "string",
+						enum: ["positive", "neutral", "negative"],
+					},
+					evidenceStrength: {
+						type: "string",
+						enum: ["high", "medium", "low"],
+					},
+					date: { type: "string" },
+					summary: { type: "string" },
+					sourceUrl: { type: "string" },
+				},
+				required: [
+					"source",
+					"sentiment",
+					"evidenceStrength",
+					"date",
+					"summary",
+					"sourceUrl",
+				],
+			},
 		},
+		sourceUrls: { type: "array", items: { type: "string" } },
+		notes: { type: "string" },
 	},
-);
-
-const newsSentimentResponseFormat = toolStrategy(
-	newsJsonSchema as unknown as { type: "object" } & Record<string, unknown>,
-);
+	required: ["ticker", "sentimentSources", "sourceUrls", "notes"],
+});
 
 function createNewsSentimentAgent(
 	model: BaseChatModel,

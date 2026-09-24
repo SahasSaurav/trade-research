@@ -1,33 +1,85 @@
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import type { StructuredTool } from "@langchain/core/tools";
 import { GEOPOLITICAL_SYSTEM_PROMPT } from "@src/features/sentiment/subagents/geopolitical/prompt.js";
-import { geopoliticalResearchSchema } from "@src/features/sentiment/subagents/geopolitical/schema.js";
 import { createAgent, toolStrategy } from "langchain";
-import { z } from "zod";
 
-// zod v4 emits JSON Schema natively; the OpenAPI 3.0 target matches Gemini's
-// `Schema` subset (single `type` plus `nullable`). The `~standard` marker is
-// dropped so langchain passes the schema through instead of re-converting it
-// to draft-2020-12, and the keywords the Gemini proto does not define are
-// removed. The Google GenAI SDK strips `additionalProperties` on the tool path.
-const { "~standard": _standard, ...geopoliticalJsonSchema } = z.toJSONSchema(
-	geopoliticalResearchSchema,
-	{
-		target: "openapi-3.0",
-		override: ({ jsonSchema }) => {
-			delete jsonSchema.minimum;
-			delete jsonSchema.maximum;
-			delete jsonSchema.format;
+// Gemini Schema subset: single-string `type`, `nullable`, no `$schema`,
+// no `additionalProperties`, no `format`/`minimum`/`maximum`.
+const geopoliticalResponseFormat = toolStrategy({
+	type: "object",
+	properties: {
+		ticker: { type: "string" },
+		geopoliticalRisks: {
+			type: "array",
+			items: {
+				type: "object",
+				properties: {
+					event: { type: "string" },
+					affectedRegion: { type: "string" },
+					eventDate: { type: "string" },
+					sourceUrl: { type: "string" },
+					publisher: { type: "string" },
+					publicationDate: { type: "string" },
+					companyConnection: {
+						type: "string",
+						enum: [
+							"revenue_exposure",
+							"operations",
+							"suppliers",
+							"customers",
+							"logistics",
+							"commodities",
+							"regulation",
+							"market_access",
+							"none",
+						],
+					},
+					impact: {
+						type: "string",
+						enum: ["positive", "negative", "neutral", "uncertain"],
+					},
+					timeHorizon: {
+						type: "string",
+						enum: ["immediate", "short_term", "long_term"],
+					},
+					confidence: {
+						type: "string",
+						enum: ["high", "medium", "low"],
+					},
+					confidenceEvidence: { type: "string" },
+					status: {
+						type: "string",
+						enum: ["confirmed", "proposed", "speculative"],
+					},
+				},
+				required: [
+					"event",
+					"affectedRegion",
+					"eventDate",
+					"sourceUrl",
+					"publisher",
+					"publicationDate",
+					"companyConnection",
+					"impact",
+					"timeHorizon",
+					"confidence",
+					"confidenceEvidence",
+					"status",
+				],
+			},
 		},
+		geopoliticalSummary: { type: "string" },
+		sourceUrls: { type: "array", items: { type: "string" } },
+		notes: { type: "string" },
 	},
-);
-
-const geopoliticalResponseFormat = toolStrategy(
-	geopoliticalJsonSchema as unknown as { type: "object" } & Record<
-		string,
-		unknown
-	>,
-);
+	required: [
+		"ticker",
+		"geopoliticalRisks",
+		"geopoliticalSummary",
+		"sourceUrls",
+		"notes",
+	],
+});
 
 function createGeopoliticalAgent(model: BaseChatModel, search: StructuredTool) {
 	return createAgent({

@@ -16,5 +16,45 @@ const newsSentimentResearchSchema = z.object({
 	notes: z.string(),
 });
 
-export { newsSentimentResearchSchema };
+// Gemini JSON Schema for the agent's structured tool output: single-string
+// `type` + `nullable`, no `format`/`minimum`/`maximum`/`additionalProperties`.
+const newsJsonSchema: { type: "object" } & Record<string, unknown> = {
+	type: "object",
+	properties: {
+		ticker: { type: "string" },
+		sentimentSources: {
+			type: "array",
+			items: {
+				type: "object",
+				properties: {
+					source: { type: "string" },
+					sentiment: {
+						type: "string",
+						enum: ["positive", "neutral", "negative"],
+					},
+					evidenceStrength: {
+						type: "string",
+						enum: ["high", "medium", "low"],
+					},
+					date: { type: "string" },
+					summary: { type: "string" },
+					sourceUrl: { type: "string" },
+				},
+				required: [
+					"source",
+					"sentiment",
+					"evidenceStrength",
+					"date",
+					"summary",
+					"sourceUrl",
+				],
+			},
+		},
+		sourceUrls: { type: "array", items: { type: "string" } },
+		notes: { type: "string" },
+	},
+	required: ["ticker", "sentimentSources", "sourceUrls", "notes"],
+};
+
+export { newsJsonSchema, newsSentimentResearchSchema };
 export type NewsSentimentResearch = z.infer<typeof newsSentimentResearchSchema>;

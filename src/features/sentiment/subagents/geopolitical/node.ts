@@ -1,7 +1,7 @@
 import { GEOPOLITICAL_USER_MESSAGE } from "@src/features/sentiment/subagents/geopolitical/prompt.js";
 import { geopoliticalResearchSchema } from "@src/features/sentiment/subagents/geopolitical/schema.js";
-import type { SentimentResearchStateType } from "@src/features/sentiment/workflow/state.js";
 import { runResearch } from "@src/features/sentiment/workflow/research.js";
+import type { SentimentResearchStateType } from "@src/features/sentiment/workflow/state.js";
 import type { ReactAgent } from "langchain";
 
 function createGeopoliticalNode(agent: ReactAgent) {

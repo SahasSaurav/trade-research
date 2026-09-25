@@ -8,14 +8,15 @@ import { loadConfig } from "@src/config/config.js";
 import { createAnalystAgent } from "@src/features/analyst/agent.js";
 import { createDecisionAgent } from "@src/features/decision/agent.js";
 import { createGeopoliticalAgent } from "@src/features/sentiment/subagents/geopolitical/agent.js";
-import { createNewsSentimentAgent } from "@src/features/sentiment/subagents/news/agent.js";
+import { createNewsSentimentAgent } from "@src/features/sentiment/subagents/news-sentiment/agent.js";
 import { createSummaryAgent } from "@src/features/summary/agent.js";
 import { createValuationAgent } from "@src/features/valuation/agent.js";
-import { createGraph } from "@src/workflows/graph.js";
+import { createGraph, type GraphAgents } from "@src/workflows/graph.js";
 
 type WorkflowDeps = {
 	model: BaseChatModel;
 	search: TavilySearch;
+	agents: GraphAgents;
 };
 
 function createModel(config: ReturnType<typeof loadConfig>): BaseChatModel {
@@ -39,7 +40,6 @@ function createModel(config: ReturnType<typeof loadConfig>): BaseChatModel {
 				apiKey: config.google.apiKey,
 				temperature: config.model.temperature,
 			});
-		case "ollama":
 		default:
 			return new ChatOllama({
 				model: config.model.name,
@@ -62,21 +62,25 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 			timeRange: "day",
 		});
 
-	const valuationAgent = createValuationAgent(model, search);
-	const analystAgent = createAnalystAgent(model, search);
-	const newsSentimentAgent = createNewsSentimentAgent(model, search);
-	const geopoliticalAgent = createGeopoliticalAgent(model, search);
-	const decisionAgent = createDecisionAgent(model);
-	const summaryAgent = createSummaryAgent(model);
+	const valuationAgent =
+		deps.agents?.valuation ?? createValuationAgent({ model, search });
+	const analystAgent =
+		deps.agents?.analyst ?? createAnalystAgent({ model, search });
+	const newsSentimentAgent =
+		deps.agents?.newsSentiment ?? createNewsSentimentAgent({ model, search });
+	const geopoliticalAgent =
+		deps.agents?.geopolitical ?? createGeopoliticalAgent({ model, search });
+	const decisionAgent = deps.agents?.decision ?? createDecisionAgent({ model });
+	const summaryAgent = deps.agents?.summary ?? createSummaryAgent({ model });
 
-	const workflow = createGraph(
-		valuationAgent,
-		analystAgent,
-		newsSentimentAgent,
-		geopoliticalAgent,
-		decisionAgent,
-		summaryAgent,
-	);
+	const workflow = createGraph({
+		valuation: valuationAgent,
+		analyst: analystAgent,
+		newsSentiment: newsSentimentAgent,
+		geopolitical: geopoliticalAgent,
+		decision: decisionAgent,
+		summary: summaryAgent,
+	});
 
 	return {
 		model,

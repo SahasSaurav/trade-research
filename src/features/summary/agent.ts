@@ -3,9 +3,9 @@ import { SUMMARY_SYSTEM_PROMPT } from "@src/features/summary/prompt.js";
 import { summaryJsonSchema } from "@src/features/summary/schema.js";
 import { createAgent, toolStrategy } from "langchain";
 
-function createSummaryAgent(model: BaseChatModel) {
+function createSummaryAgent(deps: { model: BaseChatModel }) {
 	return createAgent({
-		model,
+		model: deps.model,
 		systemPrompt: SUMMARY_SYSTEM_PROMPT,
 		responseFormat: toolStrategy(summaryJsonSchema),
 	});

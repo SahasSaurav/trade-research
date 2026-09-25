@@ -69,8 +69,7 @@ function validateSentimentData(sentiment: unknown): string[] {
 		return issues;
 	}
 
-	const daysOld =
-		new Date().getTime() - new Date(parsed.data.dateChecked).getTime();
+	const daysOld = Date.now() - new Date(parsed.data.dateChecked).getTime();
 	if (daysOld > 14 * 24 * 60 * 60 * 1000) {
 		issues.push("sentiment data appears stale (>14 days old)");
 	}

@@ -4,10 +4,13 @@ import { GEOPOLITICAL_SYSTEM_PROMPT } from "@src/features/sentiment/subagents/ge
 import { geopoliticalJsonSchema } from "@src/features/sentiment/subagents/geopolitical/schema.js";
 import { createAgent, toolStrategy } from "langchain";
 
-function createGeopoliticalAgent(model: BaseChatModel, search: StructuredTool) {
+function createGeopoliticalAgent(deps: {
+	model: BaseChatModel;
+	search: StructuredTool;
+}) {
 	return createAgent({
-		model,
-		tools: [search],
+		model: deps.model,
+		tools: [deps.search],
 		systemPrompt: GEOPOLITICAL_SYSTEM_PROMPT,
 		responseFormat: toolStrategy(geopoliticalJsonSchema),
 	});

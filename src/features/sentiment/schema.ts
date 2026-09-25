@@ -1,5 +1,5 @@
-import { z } from "zod";
 import { GeopoliticalEventSchema } from "@src/features/sentiment/subagents/geopolitical/schema.js";
+import { z } from "zod";
 
 const sentimentSchema = z.object({
 	ticker: z.string(),

@@ -1,10 +1,10 @@
 import { END, START, StateGraph } from "@langchain/langgraph";
 import { createGeopoliticalNode } from "@src/features/sentiment/subagents/geopolitical/node.js";
 import type { GeopoliticalResearch } from "@src/features/sentiment/subagents/geopolitical/schema.js";
-import { createNewsSentimentNode } from "@src/features/sentiment/subagents/news/node.js";
-import type { NewsSentimentResearch } from "@src/features/sentiment/subagents/news/schema.js";
-import { SentimentResearchState } from "@src/features/sentiment/workflow/state.js";
+import { createNewsSentimentNode } from "@src/features/sentiment/subagents/news-sentiment/node.js";
+import type { NewsSentimentResearch } from "@src/features/sentiment/subagents/news-sentiment/schema.js";
 import type { SentimentResearchStateType } from "@src/features/sentiment/workflow/state.js";
+import { SentimentResearchState } from "@src/features/sentiment/workflow/state.js";
 import type { ReactAgent } from "langchain";
 
 function createSentimentGraph(

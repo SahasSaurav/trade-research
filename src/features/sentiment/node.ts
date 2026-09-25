@@ -1,5 +1,5 @@
-import type { GraphState } from "@src/workflows/state.js";
 import { createSentimentGraph } from "@src/features/sentiment/workflow/graph.js";
+import type { GraphState } from "@src/workflows/state.js";
 import type { ReactAgent } from "langchain";
 
 function createSentimentNode(

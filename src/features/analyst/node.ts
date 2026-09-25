@@ -29,8 +29,7 @@ function createAnalystRepairNode(agent: ReactAgent) {
 					role: "user",
 					content: ANALYST_REPAIR_USER_MESSAGE(
 						state.ticker,
-						(state.validation as { analystIssues?: string[] } | undefined)
-							?.analystIssues ?? [],
+						state.validation?.analystIssues ?? [],
 					),
 				},
 			],

@@ -4,10 +4,13 @@ import { VALUATION_SYSTEM_PROMPT } from "@src/features/valuation/prompt.js";
 import { valuationJsonSchema } from "@src/features/valuation/schema.js";
 import { createAgent, toolStrategy } from "langchain";
 
-function createValuationAgent(model: BaseChatModel, search: TavilySearch) {
+function createValuationAgent(deps: {
+	model: BaseChatModel;
+	search: TavilySearch;
+}) {
 	return createAgent({
-		model,
-		tools: [search],
+		model: deps.model,
+		tools: [deps.search],
 		systemPrompt: VALUATION_SYSTEM_PROMPT,
 		responseFormat: toolStrategy(valuationJsonSchema),
 	});

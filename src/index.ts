@@ -1,7 +1,7 @@
 import "dotenv/config";
 
-import { createWorkflow } from "@src/workflows/workflow.js";
 import { randomUUID } from "node:crypto";
+import { createWorkflow } from "@src/workflows/workflow.js";
 
 const ticker = "AAPL";
 
@@ -17,9 +17,9 @@ console.log(`STOCK RESEARCH REPORT: ${ticker}`);
 console.log(`${"=".repeat(60)}\n`);
 
 // Print Summary with Data
-const summary = result.summary as { summary?: string } | null;
-if (summary?.summary) {
-	console.log(summary.summary);
+const summary = result.summary?.summary;
+if (summary) {
+	console.log(summary);
 } else {
 	console.log("No summary available");
 }

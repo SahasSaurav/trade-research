@@ -7,7 +7,6 @@ import { createDecisionNode } from "@src/features/decision/node.js";
 import { createSentimentNode } from "@src/features/sentiment/node.js";
 import { createSummaryNode } from "@src/features/summary/node.js";
 import { createValidationNode } from "@src/features/validation/node.js";
-import type { ValidationResult } from "@src/features/validation/validate.js";
 import { createValuationNode } from "@src/features/valuation/node.js";
 import type { GraphState } from "@src/workflows/state.js";
 import { WorkflowState } from "@src/workflows/state.js";
@@ -18,36 +17,38 @@ const NODE_TIMEOUT_MS = 99_999;
 
 type Route = "decisionAgent" | "analystRepair" | "summaryAgent" | "__end__";
 
-function createGraph(
-	valuationAgent: ReactAgent,
-	analystAgent: ReactAgent,
-	newsSentimentAgent: ReactAgent,
-	geopoliticalAgent: ReactAgent,
-	decisionAgent: ReactAgent,
-	summaryAgent: ReactAgent,
-) {
+type GraphAgents = {
+	valuation: ReactAgent;
+	analyst: ReactAgent;
+	newsSentiment: ReactAgent;
+	geopolitical: ReactAgent;
+	decision: ReactAgent;
+	summary: ReactAgent;
+};
+
+function createGraph(agents: GraphAgents) {
 	const graphBuilder = new StateGraph(WorkflowState)
-		.addNode("valuationAgent", createValuationNode(valuationAgent), {
+		.addNode("valuationAgent", createValuationNode(agents.valuation), {
 			timeout: NODE_TIMEOUT_MS,
 		})
-		.addNode("analystAgent", createAnalystNode(analystAgent), {
+		.addNode("analystAgent", createAnalystNode(agents.analyst), {
 			timeout: NODE_TIMEOUT_MS,
 		})
 		.addNode(
 			"sentimentAgent",
-			createSentimentNode(newsSentimentAgent, geopoliticalAgent),
+			createSentimentNode(agents.newsSentiment, agents.geopolitical),
 			{
 				timeout: NODE_TIMEOUT_MS,
 			},
 		)
 		.addNode("dataValidation", createValidationNode())
-		.addNode("analystRepair", createAnalystRepairNode(analystAgent), {
+		.addNode("analystRepair", createAnalystRepairNode(agents.analyst), {
 			timeout: NODE_TIMEOUT_MS,
 		})
-		.addNode("decisionAgent", createDecisionNode(decisionAgent), {
+		.addNode("decisionAgent", createDecisionNode(agents.decision), {
 			timeout: NODE_TIMEOUT_MS,
 		})
-		.addNode("summaryAgent", createSummaryNode(summaryAgent), {
+		.addNode("summaryAgent", createSummaryNode(agents.summary), {
 			timeout: NODE_TIMEOUT_MS,
 		})
 		.addEdge(START, "valuationAgent")
@@ -59,7 +60,7 @@ function createGraph(
 		)
 		.addEdge("analystRepair", "dataValidation")
 		.addConditionalEdges("dataValidation", (state: GraphState): Route => {
-			const validation = state.validation as ValidationResult | undefined;
+			const validation = state.validation;
 			if (!validation) return "summaryAgent";
 			if (
 				validation.analystIssues.length > 0 &&
@@ -71,8 +72,7 @@ function createGraph(
 			return "decisionAgent";
 		})
 		.addConditionalEdges("decisionAgent", (state: GraphState): Route => {
-			const status = state.workflowStatus as string;
-			if (status === "insufficient_data") return "summaryAgent";
+			if (state.workflowStatus === "insufficient_data") return "summaryAgent";
 			return END;
 		})
 		.addEdge("summaryAgent", END);
@@ -82,4 +82,5 @@ function createGraph(
 	});
 }
 
+export type { GraphAgents };
 export { createGraph };

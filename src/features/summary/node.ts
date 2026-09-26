@@ -12,6 +12,8 @@ function createSummaryNode(agent: ReactAgent) {
 						state.ticker,
 						state.valuation,
 						state.analyst,
+						state.sentiment,
+						state.decision,
 					),
 				},
 			],

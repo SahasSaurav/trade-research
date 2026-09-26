@@ -1,7 +1,7 @@
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import type { StructuredTool } from "@langchain/core/tools";
 import { GEOPOLITICAL_SYSTEM_PROMPT } from "@src/features/sentiment/subagents/geopolitical/prompt.js";
-import { geopoliticalJsonSchema } from "@src/features/sentiment/subagents/geopolitical/schema.js";
+import { geopoliticalResearchSchema } from "@src/features/sentiment/subagents/geopolitical/schema.js";
 import { createAgent, toolStrategy } from "langchain";
 
 function createGeopoliticalAgent(deps: {
@@ -12,7 +12,7 @@ function createGeopoliticalAgent(deps: {
 		model: deps.model,
 		tools: [deps.search],
 		systemPrompt: GEOPOLITICAL_SYSTEM_PROMPT,
-		responseFormat: toolStrategy(geopoliticalJsonSchema),
+		responseFormat: toolStrategy(geopoliticalResearchSchema),
 	});
 }
 

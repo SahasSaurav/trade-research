@@ -1,7 +1,7 @@
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import type { TavilySearch } from "@langchain/tavily";
 import { ANALYST_SYSTEM_PROMPT } from "@src/features/analyst/prompt.js";
-import { analystJsonSchema } from "@src/features/analyst/schema.js";
+import { analystReportSchema } from "@src/features/analyst/schema.js";
 import { createAgent, toolStrategy } from "langchain";
 
 function createAnalystAgent(deps: {
@@ -12,7 +12,7 @@ function createAnalystAgent(deps: {
 		model: deps.model,
 		tools: [deps.search],
 		systemPrompt: ANALYST_SYSTEM_PROMPT,
-		responseFormat: toolStrategy(analystJsonSchema),
+		responseFormat: toolStrategy(analystReportSchema),
 	});
 }
 

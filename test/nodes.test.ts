@@ -3,6 +3,7 @@ import {
 	createAnalystRepairNode,
 } from "@src/features/analyst/node.js";
 import { createDecisionNode } from "@src/features/decision/node.js";
+import type { DecisionData } from "@src/features/decision/schema.js";
 import type { SentimentData } from "@src/features/sentiment/schema.js";
 import { createSummaryNode } from "@src/features/summary/node.js";
 import { createValidationNode } from "@src/features/validation/node.js";
@@ -67,6 +68,29 @@ const goodSentiment: SentimentData = {
 	dateChecked: TODAY,
 	sourceUrls: ["https://example.com/news"],
 	notes: null,
+};
+
+// Annotated so the string literals keep their enum types; see goodSentiment.
+const goodDecision: DecisionData = {
+	recommendation: "buy",
+	valuationAssessment: "undervalued",
+	fairValueEstimate: 250,
+	fairValueMethod: "DCF",
+	entryPriceRange: { min: 200, max: 220, rationale: "margin of safety" },
+	priceTriggers: [],
+	sentimentAssessment: "positive",
+	sentimentScore: 0.2,
+	geopoliticalRisk: "low",
+	geopoliticalFactors: [],
+	keyRisks: [],
+	keyUncertainties: [],
+	dataDates: {
+		valuation: TODAY,
+		analyst: TODAY,
+		sentiment: TODAY,
+	},
+	sourceUrls: ["https://example.com/decision"],
+	disclaimer: "d",
 };
 
 function agentReturning(response: unknown) {
@@ -157,21 +181,45 @@ describe("pass-through nodes", () => {
 		expect(await node(state())).toEqual({ summary });
 	});
 
-	it("BUG: the summary prompt never receives sentiment data", async () => {
-		// summary/node.ts calls
-		//   SUMMARY_USER_MESSAGE(state.ticker, state.valuation, state.analyst)
-		// while the signature is (ticker, valuation, analyst, sentiment?),
-		// so sentiment is silently dropped. The prompt only appends a
-		// SENTIMENT DATA block when that fourth argument is truthy.
+	it("passes sentiment and the decision into the summary prompt", async () => {
+		// The system prompt asks for a "Convergence & conflict" paragraph
+		// spanning valuation, sentiment *and* analyst views, and consolidates
+		// sourceUrls "from the valuation, analyst, and sentiment inputs" —
+		// neither is answerable while sentiment is dropped on the floor.
 		//
-		// The system prompt then asks for a "Convergence & conflict"
-		// paragraph spanning valuation, sentiment *and* analyst views, which
-		// the model cannot answer without sentiment. It also says to
-		// consolidate sourceUrls "from the valuation, analyst, and sentiment
-		// inputs", so sentiment URLs are missing from the output too.
-		//
-		// Pinned as-is: the fix is one argument, but it changes model input,
-		// so it belongs in its own commit.
+		// The decision is the other half. The decision agent runs before the
+		// summary agent, so the buy/hold/avoid call already exists; passing it
+		// is what lets the summary lead with it instead of ending the run with
+		// prose that never mentions what to do.
+		let seen = "";
+		const agent = {
+			invoke: async (input: unknown) => {
+				seen = JSON.stringify(input);
+				return { structuredResponse: null };
+			},
+		} as unknown as ReactAgent;
+
+		await createSummaryNode(agent)(
+			state({
+				valuation: goodValuation,
+				analyst: goodAnalyst,
+				sentiment: goodSentiment,
+				decision: goodDecision,
+			}),
+		);
+
+		expect(seen).toContain("VALUATION DATA");
+		expect(seen).toContain("ANALYST REPORTS");
+		expect(seen).toContain("SENTIMENT DATA");
+		expect(seen).toContain("DECISION");
+		expect(seen).toContain("buy");
+		expect(seen).toContain("250");
+	});
+
+	it("tells the summary no decision was made rather than passing undefined", async () => {
+		// When validation fails the graph routes straight to the summary with
+		// no decision in state. Silently omitting the block would read as
+		// "nothing to say about the call" and invite the model to invent one.
 		let seen = "";
 		const agent = {
 			invoke: async (input: unknown) => {
@@ -188,9 +236,7 @@ describe("pass-through nodes", () => {
 			}),
 		);
 
-		expect(seen).toContain("VALUATION DATA");
-		expect(seen).toContain("ANALYST REPORTS");
-		expect(seen).not.toContain("SENTIMENT DATA");
+		expect(seen).toContain("RECOMMENDATION: NONE");
 	});
 
 	it("stores a decision node's response and marks the run complete", async () => {

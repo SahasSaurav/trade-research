@@ -1,4 +1,4 @@
-import { ConfigError, loadConfig } from "@src/config/config.js";
+import { ConfigError, getConfig, loadConfig } from "@src/config/config.js";
 import { describe, expect, it } from "vitest";
 
 /** A minimal env that satisfies the required keys. */
@@ -121,6 +121,36 @@ describe("loadConfig", () => {
 		} catch (error) {
 			expect(error).toBeInstanceOf(ConfigError);
 			expect((error as Error).name).toBe("ConfigError");
+		}
+	});
+});
+
+describe("getConfig", () => {
+	it("reads process.env, unlike loadConfig's explicit argument", () => {
+		// getConfig is the zero-arg form the app actually calls, so it has to
+		// resolve against the real environment. Without this it is the one
+		// exported config entry with no coverage.
+		const saved = { ...process.env };
+		try {
+			process.env.MODEL_PROVIDER = "openai";
+			process.env.MODEL_NAME = "gpt-4o-mini";
+			process.env.MODEL_TEMPERATURE = "0.2";
+			process.env.TAVILY_API_KEY = "tavily-key";
+			process.env.OPENAI_API_KEY = "openai-key";
+			process.env.GOOGLE_API_KEY = "google-key";
+			process.env.XAI_API_KEY = "xai-key";
+
+			const config = getConfig();
+
+			expect(config.model).toEqual({
+				provider: "openai",
+				name: "gpt-4o-mini",
+				temperature: 0.2,
+			});
+		} finally {
+			// Restore, so a stray mutation cannot leak into another file.
+			for (const key of Object.keys(process.env)) delete process.env[key];
+			Object.assign(process.env, saved);
 		}
 	});
 });

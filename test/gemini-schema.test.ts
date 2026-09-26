@@ -6,6 +6,7 @@ import { sentimentSchema } from "@src/features/sentiment/schema.js";
 import { newsSentimentResearchSchema } from "@src/features/sentiment/subagents/news-sentiment/schema.js";
 import { summarySchema } from "@src/features/summary/schema.js";
 import { valuationSchema } from "@src/features/valuation/schema.js";
+import { computeValuationMultiples } from "@src/features/valuation/tool.js";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
@@ -114,6 +115,36 @@ describe("Gemini schema compatibility", () => {
 			expect(findArrayValuedTypes(parameters)).toEqual([]);
 		},
 	);
+
+	// The tool input schema travels the same path as the response schemas: it
+	// is converted and sent inside the same `tools` payload, so the same proto
+	// restriction applies. This is the guard for the crash where
+	// compute_valuation_multiples declared `.nullable()` fields, which zod 4
+	// renders as "type": ["number","null"] and Gemini rejected with
+	// "Proto field is not repeating, cannot start list" — taking down every
+	// request before a node ran.
+	it("compute_valuation_multiples emits a convertible, Gemini-legal schema", () => {
+		const parameters = schemaToGeminiParameters(
+			// The tool object, not the response schema: the converter branches
+			// on whether it is handed a zod schema or plain JSON Schema.
+			(computeValuationMultiples as unknown as { schema: unknown }).schema,
+		);
+
+		expect(findArrayValuedTypes(parameters)).toEqual([]);
+
+		const properties = parameters.properties as Record<string, JsonSchemaNode>;
+		for (const field of [
+			"price",
+			"trailingEps",
+			"forwardEps",
+			"growthRatePercent",
+		]) {
+			// Single string type, not a union, and not nullable: the tool takes
+			// required numbers and treats 0 as "could not verify".
+			expect(properties[field]?.type, field).toBe("number");
+			expect(properties[field]?.nullable, field).toBeUndefined();
+		}
+	});
 
 	it("renders .nullable() as { type, nullable: true }, not a union", () => {
 		const parameters = schemaToGeminiParameters(valuationSchema);

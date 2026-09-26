@@ -140,4 +140,17 @@ describe("runResearch", () => {
 			}, schema),
 		).rejects.toBe("just a string");
 	});
+
+	it("stringifies a non-Error provider failure into the error field", async () => {
+		// The counterpart to the case above. isProviderError matches on the
+		// message, so a thrown object with a status is caught and reported
+		// rather than rethrown — and since it is not an Error instance, the
+		// `String(error)` fallback runs instead of `.message`.
+		const outcome = await runResearch(async () => {
+			throw { status: 500, detail: "upstream exploded" };
+		}, schema);
+
+		expect(outcome.data).toBeNull();
+		expect(outcome.error).toBe("[object Object]");
+	});
 });

@@ -126,6 +126,78 @@ describe("sentiment merge", () => {
 		expect(result.sentimentScore).toBe(1);
 	});
 
+	// The recency ladder in graph.ts is 1 / 0.75 / 0.4 / 0 at 7 / 30 / 90 days.
+	// Each band is a place the weights could silently drift, so pin all four.
+	//
+	// Ages sit just inside each band rather than exactly on the boundary:
+	// daysAgo() and the merge node each call Date.now() separately, so a source
+	// placed at exactly 90.0 days can measure as 90.0000001 and drop a band.
+	const RECENCY_LADDER = [
+		{ days: 3, recencyWeight: 1, label: "a 3-day-old" },
+		{ days: 20, recencyWeight: 0.75, label: "a 20-day-old" },
+		{ days: 60, recencyWeight: 0.4, label: "a 60-day-old" },
+		{ days: 200, recencyWeight: 0, label: "a 200-day-old" },
+	];
+
+	for (const { days, recencyWeight, label } of RECENCY_LADDER) {
+		it(`weights ${label} source at ${recencyWeight}`, async () => {
+			const result = await merge(
+				{
+					...goodNews,
+					sentimentSources: [
+						// The +1 anchor is fresh, so totalWeight is 1 + w.
+						source({ sentiment: "positive", date: daysAgo(0) }),
+						source({ sentiment: "negative", date: daysAgo(days) }),
+					],
+				},
+				goodGeopolitical,
+			);
+
+			// Both high evidence, so (1 - w) / (1 + w).
+			const expected = Number(
+				((1 - recencyWeight) / (1 + recencyWeight)).toFixed(2),
+			);
+			expect(result.sentimentScore).toBe(expected);
+		});
+	}
+
+	// The overall label uses +/-0.15 bands on the raw score, independently of
+	// the score itself. Evidence strength picks the weights (high 1, medium
+	// 0.65, low 0.35), so pairing one positive with one negative source of
+	// differing strength lands on a spread of reachable scores. The +/-0.15
+	// boundary itself is not reachable from this weight table, so it is not
+	// pinned here.
+	it.each([
+		{ pos: "high", neg: "low", score: 0.48, label: "positive" },
+		{ pos: "medium", neg: "low", score: 0.3, label: "positive" },
+		{ pos: "high", neg: "medium", score: 0.21, label: "positive" },
+		{ pos: "medium", neg: "medium", score: 0, label: "neutral" },
+		{ pos: "low", neg: "medium", score: -0.3, label: "negative" },
+		{ pos: "low", neg: "high", score: -0.48, label: "negative" },
+	] as Array<{
+		pos: "high" | "medium" | "low";
+		neg: "high" | "medium" | "low";
+		score: number;
+		label: string;
+	}>)(
+		"scores $pos vs $neg as $score, labelled $label",
+		async ({ pos, neg, score, label }) => {
+			const result = await merge(
+				{
+					...goodNews,
+					sentimentSources: [
+						source({ sentiment: "positive", evidenceStrength: pos }),
+						source({ sentiment: "negative", evidenceStrength: neg }),
+					],
+				},
+				goodGeopolitical,
+			);
+
+			expect(result.sentimentScore).toBe(score);
+			expect(result.overallSentiment).toBe(label);
+		},
+	);
+
 	it("returns a null score and 'unknown' when there are no sources", async () => {
 		const sentiment = await merge(
 			{ ...goodNews, sentimentSources: [] },
@@ -181,6 +253,15 @@ describe("sentiment merge", () => {
 
 		expect(sentiment.notes).toContain("news note");
 		expect(sentiment.notes).toContain("geo note");
+	});
+
+	it("defaults notes to null when neither subagent has any", async () => {
+		const sentiment = await merge(
+			{ ...goodNews, notes: "" },
+			{ ...goodGeopolitical, notes: "" },
+		);
+
+		expect(sentiment.notes).toBeNull();
 	});
 
 	describe("partial failure", () => {

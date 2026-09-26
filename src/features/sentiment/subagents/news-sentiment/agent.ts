@@ -2,6 +2,10 @@ import type { BaseChatModel } from "@langchain/core/language_models/chat_models"
 import type { TavilySearch } from "@langchain/tavily";
 import { NEWS_SENTIMENT_SYSTEM_PROMPT } from "@src/features/sentiment/subagents/news-sentiment/prompt.js";
 import { newsSentimentResearchSchema } from "@src/features/sentiment/subagents/news-sentiment/schema.js";
+import {
+	AGENT_GUARD_CONFIG,
+	agentGuardMiddleware,
+} from "@src/workflows/agent-guard.js";
 import { createAgent, toolStrategy } from "langchain";
 
 function createNewsSentimentAgent(deps: {
@@ -13,7 +17,8 @@ function createNewsSentimentAgent(deps: {
 		tools: [deps.search],
 		systemPrompt: NEWS_SENTIMENT_SYSTEM_PROMPT,
 		responseFormat: toolStrategy(newsSentimentResearchSchema),
-	});
+		middleware: agentGuardMiddleware(),
+	}).withConfig(AGENT_GUARD_CONFIG);
 }
 
 export { createNewsSentimentAgent };

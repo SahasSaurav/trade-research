@@ -1,5 +1,5 @@
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { ChatGoogle } from "@langchain/google";
 import { ChatOllama } from "@langchain/ollama";
 import { ChatOpenAI } from "@langchain/openai";
 import { TavilySearch } from "@langchain/tavily";
@@ -35,7 +35,7 @@ function createModel(config: ReturnType<typeof loadConfig>): BaseChatModel {
 				},
 			});
 		case "google-genai":
-			return new ChatGoogleGenerativeAI({
+			return new ChatGoogle({
 				model: config.model.name,
 				apiKey: config.google.apiKey,
 				temperature: config.model.temperature,

@@ -15,7 +15,7 @@ import type { ReactAgent } from "langchain";
 const MAX_ANALYST_ATTEMPTS = 2;
 const NODE_TIMEOUT_MS = 99_999;
 
-type Route = "decisionAgent" | "analystRepair" | "summaryAgent" | "__end__";
+type Route = "decisionAgent" | "analystRepair" | "summaryAgent";
 
 type GraphAgents = {
 	valuation: ReactAgent;
@@ -71,10 +71,7 @@ function createGraph(agents: GraphAgents) {
 			if (!validation.pass) return "summaryAgent";
 			return "decisionAgent";
 		})
-		.addConditionalEdges("decisionAgent", (state: GraphState): Route => {
-			if (state.workflowStatus === "insufficient_data") return "summaryAgent";
-			return END;
-		})
+		.addEdge("decisionAgent", "summaryAgent")
 		.addEdge("summaryAgent", END);
 
 	return graphBuilder.compile({

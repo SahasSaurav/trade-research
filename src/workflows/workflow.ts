@@ -107,6 +107,7 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 		geopolitical: geopoliticalAgent,
 		decision: decisionAgent,
 		summary: summaryAgent,
+		tickerSearch: referenceSearch,
 	});
 
 	return {

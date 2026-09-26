@@ -137,9 +137,7 @@ describe("workflow graph", () => {
 		expect(summaryAgent.stub.invokeCount).toBe(1);
 	});
 
-	it("starts valuation, analyst and sentiment concurrently from START", async () => {
-		// All three fan out from START, so latency is the slowest branch
-		// rather than the sum. Sequential edges here would triple runtime.
+	it("runs ticker validation before starting parallel research branches", async () => {
 		const { agents } = buildAgents();
 
 		const graph = createGraph(agents);
@@ -149,11 +147,7 @@ describe("workflow graph", () => {
 			.filter((edge) => edge.source === START)
 			.map((edge) => edge.target);
 
-		expect(startTargets.sort()).toEqual([
-			"analystAgent",
-			"sentimentAgent",
-			"valuationAgent",
-		]);
+		expect(startTargets).toEqual(["tickerValidation"]);
 	});
 
 	it("halts to the summary when validation fails, skipping the decision", async () => {

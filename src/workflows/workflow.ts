@@ -2,11 +2,12 @@ import type { BaseChatModel } from "@langchain/core/language_models/chat_models"
 import { ChatGoogle } from "@langchain/google";
 import { ChatOllama } from "@langchain/ollama";
 import { ChatOpenAI } from "@langchain/openai";
-import { TavilySearch } from "@langchain/tavily";
+import type { TavilySearch } from "@langchain/tavily";
 
 import { loadConfig } from "@src/config/config.js";
 import { createAnalystAgent } from "@src/features/analyst/agent.js";
 import { createDecisionAgent } from "@src/features/decision/agent.js";
+import { createSearchTool } from "@src/features/search/tool.js";
 import { createGeopoliticalAgent } from "@src/features/sentiment/subagents/geopolitical/agent.js";
 import { createNewsSentimentAgent } from "@src/features/sentiment/subagents/news-sentiment/agent.js";
 import { createSummaryAgent } from "@src/features/summary/agent.js";
@@ -15,7 +16,8 @@ import { createGraph, type GraphAgents } from "@src/workflows/graph.js";
 
 type WorkflowDeps = {
 	model: BaseChatModel;
-	search: TavilySearch;
+	referenceSearch: TavilySearch;
+	newsSearch: TavilySearch;
 	agents: GraphAgents;
 };
 
@@ -54,22 +56,47 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 
 	const model = deps.model ?? createModel(config);
 
-	const search =
-		deps.search ??
-		new TavilySearch({
+	/**
+	 * Two tools, because a publication-date filter is right for one pair of
+	 * agents and actively harmful for the other.
+	 *
+	 * The news subagents want the last day, and timeRange "day" gives them
+	 * that. The valuation and analyst agents want SEC filings, statistics pages
+	 * and broker research, none of which are *published* within 24 hours — a
+	 * one-day filter returned a Yahoo Finance page for TSLA, a Telecom Italia
+	 * quote and a YouTube video, so the model never found a price or an EPS
+	 * figure, burned its whole call budget searching, and the valuation
+	 * artifact came back empty. Their own prompts ask for a 90-day window, so
+	 * they get no filter at all.
+	 */
+	const referenceSearch =
+		deps.referenceSearch ??
+		createSearchTool({
+			tavilyApiKey: config.tavily.apiKey,
+			maxResults: 8,
+			searchDepth: "advanced",
+		});
+
+	const newsSearch =
+		deps.newsSearch ??
+		createSearchTool({
 			tavilyApiKey: config.tavily.apiKey,
 			maxResults: 5,
 			timeRange: "day",
 		});
 
 	const valuationAgent =
-		deps.agents?.valuation ?? createValuationAgent({ model, search });
+		deps.agents?.valuation ??
+		createValuationAgent({ model, search: referenceSearch });
 	const analystAgent =
-		deps.agents?.analyst ?? createAnalystAgent({ model, search });
+		deps.agents?.analyst ??
+		createAnalystAgent({ model, search: referenceSearch });
 	const newsSentimentAgent =
-		deps.agents?.newsSentiment ?? createNewsSentimentAgent({ model, search });
+		deps.agents?.newsSentiment ??
+		createNewsSentimentAgent({ model, search: newsSearch });
 	const geopoliticalAgent =
-		deps.agents?.geopolitical ?? createGeopoliticalAgent({ model, search });
+		deps.agents?.geopolitical ??
+		createGeopoliticalAgent({ model, search: newsSearch });
 	const decisionAgent = deps.agents?.decision ?? createDecisionAgent({ model });
 	const summaryAgent = deps.agents?.summary ?? createSummaryAgent({ model });
 
@@ -84,7 +111,8 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 
 	return {
 		model,
-		search,
+		referenceSearch,
+		newsSearch,
 		valuationAgent,
 		analystAgent,
 		newsSentimentAgent,

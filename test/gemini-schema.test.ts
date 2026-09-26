@@ -1,0 +1,273 @@
+import { createRequire } from "node:module";
+import path from "node:path";
+import { analystReportSchema } from "@src/features/analyst/schema.js";
+import { decisionSchema } from "@src/features/decision/schema.js";
+import { sentimentSchema } from "@src/features/sentiment/schema.js";
+import { newsSentimentResearchSchema } from "@src/features/sentiment/subagents/news-sentiment/schema.js";
+import { summarySchema } from "@src/features/summary/schema.js";
+import { valuationSchema } from "@src/features/valuation/schema.js";
+import { describe, expect, it } from "vitest";
+import { z } from "zod";
+
+/**
+ * Regression guard for langchainjs#11328.
+ *
+ * Gemini's `Schema` proto types `type` as a single enum, so it rejects the
+ * JSON Schema union that a union-valued `type` produces:
+ *
+ *   Invalid JSON payload received. Unknown name "type" at
+ *   'tools[0].function_declarations[1].parameters...':
+ *   Proto field is not repeating, cannot start list.
+ *
+ * `@langchain/google` rewrites these in `schemaToGeminiParameters`, for both
+ * Zod and pre-converted JSON Schema input. Its predecessor
+ * `@langchain/google-genai` rewrote neither — measured, both input forms came
+ * straight back out as `["number","null"]` — which is why every request used to
+ * fail before a node ran.
+ *
+ * So the invariant worth locking down is the *output* of the converter, which
+ * is what these tests assert. It is invisible to `tsc`, to `biome`, and to any
+ * test written against the obvious schema: `decisionSchema` is the concrete
+ * example, because Zod 4 emits `anyOf` for `.nullable()` there, and `anyOf` is
+ * a legal proto field, so it passes under the broken and the fixed converter
+ * alike. `valuationSchema` is the one that discriminates — which is why all six
+ * schemas are checked rather than just one.
+ */
+
+type JsonSchemaNode = {
+	type?: unknown;
+	[key: string]: unknown;
+};
+
+const require_ = createRequire(import.meta.url);
+
+/**
+ * `schemaToGeminiParameters` is internal to `@langchain/google` and not
+ * re-exported. Resolving it by absolute path is deliberate: if the package
+ * moves the file, this suite fails loudly instead of silently skipping the
+ * guard.
+ */
+function loadGeminiConverter(): {
+	schemaToGeminiParameters: (schema: unknown) => JsonSchemaNode;
+} {
+	const packageJson = require_.resolve("@langchain/google/package.json");
+	const candidates = [
+		path.join(path.dirname(packageJson), "dist/converters/tools.cjs"),
+		path.join(path.dirname(packageJson), "dist/converters/tools.js"),
+	];
+	for (const candidate of candidates) {
+		let mod: { schemaToGeminiParameters?: unknown };
+		try {
+			mod = require_(candidate) as { schemaToGeminiParameters?: unknown };
+		} catch {
+			continue; // try the next candidate
+		}
+		const fn = mod.schemaToGeminiParameters;
+		if (typeof fn === "function") {
+			return { schemaToGeminiParameters: fn as (s: unknown) => JsonSchemaNode };
+		}
+	}
+	throw new Error(
+		"Could not load schemaToGeminiParameters from @langchain/google. " +
+			"If the package reorganised its dist layout, update this guard; " +
+			"do not delete it, because the Gemini nullable bug it protects " +
+			"against returns as a hard 400 at runtime.",
+	);
+}
+
+const { schemaToGeminiParameters } = loadGeminiConverter();
+
+/** Collect every path whose `type` is an array, which Gemini cannot represent. */
+function findArrayValuedTypes(node: unknown, at = "$"): string[] {
+	if (Array.isArray(node)) {
+		return node.flatMap((child, i) =>
+			findArrayValuedTypes(child, `${at}[${i}]`),
+		);
+	}
+	if (typeof node !== "object" || node === null) return [];
+
+	const record = node as JsonSchemaNode;
+	const found = Array.isArray(record.type)
+		? [`${at}.type = ${JSON.stringify(record.type)}`]
+		: [];
+	return Object.entries(record).reduce<string[]>(
+		(acc, [key, value]) =>
+			acc.concat(findArrayValuedTypes(value, `${at}.${key}`)),
+		found,
+	);
+}
+
+const agentSchemas = [
+	["valuationSchema", valuationSchema],
+	["analystReportSchema", analystReportSchema],
+	["decisionSchema", decisionSchema],
+	["summarySchema", summarySchema],
+	["sentimentSchema", sentimentSchema],
+	["newsSentimentResearchSchema", newsSentimentResearchSchema],
+] as const;
+
+describe("Gemini schema compatibility", () => {
+	it.each(agentSchemas)(
+		"%s emits no array-valued `type` (Gemini proto has no repeated field)",
+		(_name, schema) => {
+			const parameters = schemaToGeminiParameters(schema);
+			expect(findArrayValuedTypes(parameters)).toEqual([]);
+		},
+	);
+
+	it("renders .nullable() as { type, nullable: true }, not a union", () => {
+		const parameters = schemaToGeminiParameters(valuationSchema);
+		const properties = parameters.properties as Record<string, JsonSchemaNode>;
+
+		// valuationSchema is the discriminating case: @langchain/core's
+		// toJsonSchema alone emits ["number","null"] for all five of these.
+		for (const field of [
+			"trailingEPS",
+			"forwardEPS",
+			"trailingPE",
+			"forwardPE",
+			"pegRatio",
+		]) {
+			expect(properties[field]?.type, field).toBe("number");
+			expect(properties[field]?.nullable, field).toBe(true);
+		}
+	});
+
+	it("strips keywords Gemini rejects", () => {
+		const parameters = schemaToGeminiParameters(decisionSchema);
+		const found: string[] = [];
+
+		const walk = (node: unknown): void => {
+			if (Array.isArray(node)) {
+				node.forEach(walk);
+				return;
+			}
+			if (typeof node !== "object" || node === null) return;
+			for (const [key, value] of Object.entries(node as JsonSchemaNode)) {
+				if (
+					key === "additionalProperties" ||
+					key === "$schema" ||
+					key === "$ref"
+				) {
+					found.push(key);
+				}
+				walk(value);
+			}
+		};
+
+		walk(parameters);
+		expect(found).toEqual([]);
+	});
+
+	it("keeps numeric bounds that hand-written schemas had dropped", () => {
+		// decisionSchema declares .min(-1).max(1) on sentimentScore. The
+		// hand-written JSON Schema it replaced said only
+		// { type: "number", nullable: true }, so an out-of-range score reached
+		// the model unconstrained. Verify the bound survives to the wire.
+		const parameters = schemaToGeminiParameters(decisionSchema);
+		const properties = parameters.properties as Record<string, JsonSchemaNode>;
+		const anyOf = properties.sentimentScore?.anyOf as
+			| JsonSchemaNode[]
+			| undefined;
+		const numeric = anyOf?.find((entry) => entry.type === "number");
+
+		expect(numeric?.minimum).toBe(-1);
+		expect(numeric?.maximum).toBe(1);
+	});
+
+	it("sanitises pre-converted JSON Schema identically to a Zod schema", () => {
+		// Guards a claim that is easy to get backwards.
+		//
+		// It is tempting to read `schemaToGeminiParameters` as though the
+		// Zod/JSON-Schema ternary gated the *sanitisation*:
+		//
+		//   sanitizeGeminiSchema(
+		//     isZod(schema) ? toJsonSchema(schema) : schema
+		//   )
+		//
+		// which reads as "raw JSON Schema is forwarded verbatim". It is not.
+		// The ternary only chooses how to *obtain* the JSON Schema;
+		// `sanitizeGeminiSchema` then calls `adjustObjectType` on every node
+		// either way, and the JSDoc says it takes "a Zod schema or JSON
+		// Schema". So both forms are safe under this package.
+		//
+		// This matters because the bug being guarded against lived in
+		// @langchain/google-genai, which did *not* rewrite `type` for either
+		// form. The package migration is what fixed it — not passing Zod.
+		const preConverted = z.toJSONSchema(valuationSchema);
+
+		// The raw form does contain the fatal union...
+		expect(findArrayValuedTypes(preConverted)).toContain(
+			'$.properties.trailingEPS.type = ["number","null"]',
+		);
+		// ...and this package rewrites it either way.
+		expect(
+			findArrayValuedTypes(schemaToGeminiParameters(preConverted)),
+		).toEqual([]);
+		expect(schemaToGeminiParameters(preConverted)).toEqual(
+			schemaToGeminiParameters(valuationSchema),
+		);
+	});
+});
+
+describe("schema constraints", () => {
+	it("rejects a sentimentScore outside [-1, 1]", () => {
+		const base = {
+			recommendation: "buy",
+			valuationAssessment: "undervalued",
+			fairValueEstimate: 100,
+			fairValueMethod: "DCF",
+			entryPriceRange: { min: 90, max: 95, rationale: "r" },
+			priceTriggers: [],
+			sentimentAssessment: "positive",
+			geopoliticalRisk: "low",
+			geopoliticalFactors: [],
+			keyRisks: [],
+			keyUncertainties: [],
+			dataDates: {
+				valuation: "2026-01-01",
+				analyst: "2026-01-01",
+				sentiment: "2026-01-01",
+			},
+			sourceUrls: ["https://example.com"],
+			disclaimer: "d",
+		};
+
+		expect(
+			decisionSchema.safeParse({ ...base, sentimentScore: 1 }).success,
+		).toBe(true);
+		expect(
+			decisionSchema.safeParse({ ...base, sentimentScore: -1 }).success,
+		).toBe(true);
+		expect(
+			decisionSchema.safeParse({ ...base, sentimentScore: null }).success,
+		).toBe(true);
+		expect(
+			decisionSchema.safeParse({ ...base, sentimentScore: 1.5 }).success,
+		).toBe(false);
+		expect(
+			decisionSchema.safeParse({ ...base, sentimentScore: -2 }).success,
+		).toBe(false);
+	});
+
+	it("rejects sourceUrls that are not URLs in decision output", () => {
+		const result = decisionSchema.safeParse({
+			recommendation: "hold",
+			valuationAssessment: "fairly_valued",
+			fairValueEstimate: 1,
+			fairValueMethod: "m",
+			entryPriceRange: { min: 0, max: 0, rationale: "r" },
+			priceTriggers: [],
+			sentimentAssessment: "unknown",
+			geopoliticalRisk: "unknown",
+			geopoliticalFactors: [],
+			keyRisks: [],
+			keyUncertainties: [],
+			dataDates: { valuation: "", analyst: "", sentiment: "" },
+			sourceUrls: ["not-a-url"],
+			disclaimer: "d",
+		});
+
+		expect(result.success).toBe(false);
+	});
+});

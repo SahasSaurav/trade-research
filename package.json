@@ -1,11 +1,11 @@
 {
 	"name": "trade-research",
 	"version": "1.0.0",
-	"description": "",
+	"description": "Multi-agent LangGraph pipeline that researches a ticker and produces a cited buy/hold/avoid decision.",
 	"license": "ISC",
 	"author": "",
 	"type": "module",
-	"main": "dist/index.js",
+	"main": "dist/src/index.js",
 	"scripts": {
 		"dev": "tsx src/index.ts",
 		"dev:valuation": "tsx src/index.ts --valuation",
@@ -14,13 +14,18 @@
 		"lint": "biome check",
 		"format": "biome format --write",
 		"format:check": "biome format",
-		"typecheck": "tsc --noEmit"
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"test:coverage": "vitest run --coverage"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.14",
 		"@types/node": "^26.6.2",
+		"@vitest/coverage-v8": "^5.0.2",
 		"tsx": "^4.23.15",
-		"typescript": "^7.0.2"
+		"typescript": "^7.0.2",
+		"vitest": "^5.0.2"
 	},
 	"dependencies": {
 		"@langchain/google": "^0.2.7",

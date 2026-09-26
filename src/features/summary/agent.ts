@@ -6,6 +6,7 @@ import { createAgent, toolStrategy } from "langchain";
 function createSummaryAgent(deps: { model: BaseChatModel }) {
 	return createAgent({
 		model: deps.model,
+		tools: [],
 		systemPrompt: SUMMARY_SYSTEM_PROMPT,
 		responseFormat: toolStrategy(summarySchema),
 	});

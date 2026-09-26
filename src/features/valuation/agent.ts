@@ -13,7 +13,7 @@ function createValuationAgent(deps: {
 		model: deps.model,
 		tools: [deps.search, computeValuationMultiples],
 		systemPrompt: VALUATION_SYSTEM_PROMPT,
-		responseFormat: toolStrategy(valuationSchema.toJSONSchema()),
+		responseFormat: toolStrategy(valuationSchema),
 	});
 }
 

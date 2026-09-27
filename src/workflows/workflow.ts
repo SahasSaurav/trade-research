@@ -68,12 +68,36 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 	 * figure, burned its whole call budget searching, and the valuation
 	 * artifact came back empty. Their own prompts ask for a 90-day window, so
 	 * they get no filter at all.
+	 *
+	 * The result size is a token budget, not a relevance dial. A ReAct agent
+	 * appends every tool result to its message list and re-sends that list on
+	 * each remaining model call, so a search payload is not billed once — it is
+	 * billed once per remaining call in the loop, up to MAX_MODEL_CALLS. At
+	 * 8 results x 3 chunks that is roughly 4-6K tokens of duplicated payload
+	 * re-sent 5-15 times, which dwarfs the 589-word valuation prompt it sits
+	 * next to.
+	 *
+	 * 5 results keeps the same breadth of sources to choose from; the
+	 * chunksPerSource cut is the sharper one because it does not reduce how
+	 * many distinct sources the agent can find, only how much of each it reads.
+	 * The trade is that a low-scoring page may no longer contain the number
+	 * the prompt demands, so the model rephrases and searches again — more
+	 * model calls in exchange for far smaller ones. This is the one setting
+	 * here that trades calls for tokens rather than saving outright, so it
+	 * needs per-node token counts and call counts from a real run to confirm
+	 * the net effect; the values below are reasoned, not measured. If calls
+	 * climb more than tokens drop, raise chunksPerSource back toward 2 before
+	 * touching maxResults.
+	 *
+	 * chunksPerSource is only honoured at searchDepth "advanced", so it is set
+	 * here and deliberately not on newsSearch, where Tavily ignores it.
 	 */
 	const referenceSearch =
 		deps.referenceSearch ??
 		createSearchTool({
 			tavilyApiKey: config.tavily.apiKey,
-			maxResults: 8,
+			maxResults: 5,
+			chunksPerSource: 1,
 			searchDepth: "advanced",
 		});
 

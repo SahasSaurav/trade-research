@@ -24,15 +24,10 @@ const AppConfigSchema = z.object({
 	ollama: z.object({
 		baseUrl: z.string().default("http://localhost:11434"),
 		/**
-		 * Context window handed to the local model. Left unset, Ollama uses the
-		 * model's own default, which for a 12B MLX build can be far larger than
-		 * this pipeline ever fills. An oversized window is not free on Apple
-		 * silicon: it grows the KV cache, which is what decides whether a 12B
-		 * model stays resident in unified memory.
-		 *
-		 * A latency and memory knob, not a token-cost one. Ollama bills nothing
-		 * per token, so on the local provider this is the only "cost" setting
-		 * that means anything.
+		 * Unset by default so the model's own context window keeps winning.
+		 * A window larger than this pipeline needs still costs KV cache, which
+		 * on Apple silicon decides whether a 12B model stays resident in
+		 * unified memory.
 		 */
 		numCtx: z.coerce.number().int().min(1).optional(),
 	}),
@@ -40,17 +35,11 @@ const AppConfigSchema = z.object({
 		apiKey: z.string().min(1),
 	}),
 	/**
-	 * Search result sizing.
+	 * Search result sizing. On a local provider Tavily credits are the whole
+	 * cost model, so these are the knobs that matter. Defaults reproduce the
+	 * values that were hardcoded in workflow.ts.
 	 *
-	 * On the local provider this is the entire cost model: there is no
-	 * per-token bill, so Tavily credits are the only spend. The defaults
-	 * reproduce the values that were previously hardcoded in workflow.ts, so
-	 * setting nothing changes no behaviour — it just makes the two knobs that
-	 * were reasoned about (maxResults and chunksPerSource) tunable per
-	 * environment without a code change.
-	 *
-	 * chunksPerSource is only honoured at searchDepth "advanced", which is why
-	 * it is meaningful on `reference` and inert on a basic-depth tool.
+	 * chunksPerSource is only honoured at searchDepth "advanced".
 	 */
 	search: z.object({
 		reference: z.object({
@@ -63,25 +52,21 @@ const AppConfigSchema = z.object({
 			timeRange: z.enum(["day", "week", "month", "year"]).default("day"),
 		}),
 		/**
-		 * Result cache lifetime. Five minutes is right for the news tools,
-		 * where a headline changes, and short for the reference tool, where
-		 * trailing EPS barely moves in an hour. A longer TTL is the single
-		 * biggest saving when the same tickers are re-researched.
+		 * 5 minutes suits news headlines; a longer TTL suits reference data,
+		 * which barely moves within an hour. 0 disables the cache.
 		 */
 		cacheTtlMs: z.coerce
 			.number()
 			.int()
 			.min(0)
 			.default(5 * 60_000),
-		/**
-		 * Bounded so a long-lived process cannot grow the cache without limit.
-		 */
 		cacheMaxEntries: z.coerce.number().int().min(1).default(100),
 	}),
 	/**
-	 * Multipliers on a run's worst case. Each one re-runs a whole agent, so
-	 * they compound with the per-agent model call budget rather than adding to
-	 * it: analystAttempts 2 means up to three full analyst runs.
+	 * Each budget re-runs a whole agent, so it multiplies cost rather than
+	 * adding to it. analystAttempts 2 permits three full analyst runs; 0 sends
+	 * the first result straight to validation. researchAttempts floors at 1 —
+	 * zero retries is a choice, zero attempts is not a run at all.
 	 */
 	budgets: z.object({
 		analystAttempts: z.coerce.number().int().min(0).max(5).default(2),

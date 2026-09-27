@@ -156,9 +156,8 @@ describe("runResearch", () => {
 
 	describe("attempt budget", () => {
 		it("defaults to three attempts when no budget is passed", async () => {
-			// The default has to equal the previous hardcoded constant, or
-			// making the budget configurable would quietly change behaviour for
-			// every existing caller.
+			// The default must equal the old hardcoded constant, or making the
+			// budget configurable would quietly change every existing caller.
 			const invoke = vi.fn(async () => {
 				throw providerError("still failing", { status: 503 });
 			});
@@ -169,9 +168,8 @@ describe("runResearch", () => {
 		});
 
 		it("honours a smaller attempt budget", async () => {
-			// One attempt means no retry at all, which is the whole point of
-			// exposing the budget: a caller that has already spent an agent
-			// invocation in a sibling branch may not want three more.
+			// One attempt means no retry at all: a caller that already spent an
+			// agent invocation in a sibling branch may not want three more.
 			const invoke = vi.fn(async () => {
 				throw providerError("transient", { status: 500 });
 			});

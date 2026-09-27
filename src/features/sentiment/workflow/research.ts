@@ -42,13 +42,9 @@ function isProviderError(error: unknown): boolean {
 }
 
 /**
- * Retries only ever fire on a transient provider error — a 429, a 5xx, a
- * dropped socket — never on a bad artifact, which returns immediately.
- *
- * Each attempt re-invokes the whole agent, so this is a multiplier on the most
- * expensive part of a sentiment branch rather than an increment. It is
- * overridable per call because a caller that has already burned one agent
- * invocation in a sibling branch may not want three more.
+ * Retries fire only on transient provider errors, never on a bad artifact.
+ * Each attempt re-invokes the whole agent, so this multiplies cost rather
+ * than adding to it.
  */
 async function runResearch<T>(
 	invoke: () => Promise<unknown>,

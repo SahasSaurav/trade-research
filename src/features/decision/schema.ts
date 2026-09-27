@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-// Decision output schema
 const decisionSchema = z.object({
 	recommendation: z.enum(["buy", "hold", "avoid"]),
 	valuationAssessment: z.enum(["undervalued", "fairly_valued", "overvalued"]),

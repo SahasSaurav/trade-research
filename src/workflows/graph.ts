@@ -1,10 +1,4 @@
-import {
-	END,
-	InMemoryStore,
-	MemorySaver,
-	START,
-	StateGraph,
-} from "@langchain/langgraph";
+import { END, MemorySaver, START, StateGraph } from "@langchain/langgraph";
 import type { TavilySearch } from "@langchain/tavily";
 import {
 	createAnalystNode,
@@ -35,14 +29,9 @@ type GraphAgents = {
 };
 
 /**
- * How many repair rounds the analyst gets before the run gives up on it.
- *
- * Each round is a complete re-invocation of the analyst agent, so this is a
- * multiplier on one of the most expensive branches rather than an increment:
- * the default of 2 permits three full analyst runs, and the fourth artifact
- * write is skipped. 0 disables repair entirely and sends the first result
- * straight to validation, which is the right setting when a run is exploratory
- * and a partial report beats a re-run.
+ * Each round is a complete re-invocation of the analyst, so this multiplies
+ * one of the most expensive branches rather than adding to it. 0 disables
+ * repair and sends the first result straight to validation.
  */
 const DEFAULT_MAX_ANALYST_ATTEMPTS = 2;
 
@@ -57,7 +46,9 @@ function createGraph(agents: GraphAgents, options: GraphOptions = {}) {
 
 	const graphBuilder = new StateGraph(WorkflowState)
 		.addNode(
-			"tickerValidation",
+			// Not "tickerValidation": addNode throws when a node name matches a
+			// state channel. Nodes take the job name, channels the value.
+			"tickerCheck",
 			agents.tickerSearch
 				? createTickerValidationNode(agents.tickerSearch)
 				: async () => ({ workflowStatus: "running" as const }),
@@ -89,8 +80,8 @@ function createGraph(agents: GraphAgents, options: GraphOptions = {}) {
 		.addNode("summaryAgent", createSummaryNode(agents.summary), {
 			timeout: NODE_TIMEOUT_MS,
 		})
-		.addEdge(START, "tickerValidation")
-		.addConditionalEdges("tickerValidation", (state: GraphState) =>
+		.addEdge(START, "tickerCheck")
+		.addConditionalEdges("tickerCheck", (state: GraphState) =>
 			state.workflowStatus === "invalid_ticker"
 				? END
 				: ["valuationAgent", "analystAgent", "sentimentAgent"],
@@ -117,7 +108,6 @@ function createGraph(agents: GraphAgents, options: GraphOptions = {}) {
 
 	return graphBuilder.compile({
 		checkpointer: new MemorySaver(),
-		store: new InMemoryStore(),
 	});
 }
 

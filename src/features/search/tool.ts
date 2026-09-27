@@ -23,9 +23,8 @@ const DEFAULT_SEARCH_CACHE_TTL_MS = 5 * 60_000;
 const DEFAULT_SEARCH_CACHE_MAX_ENTRIES = 100;
 
 /**
- * Cache sizing, kept out of TavilySearchAPIRetrieverFields because these are
- * properties of this wrapper rather than of the Tavily API, and passing them
- * through to super() would send unknown keys in the request body.
+ * Properties of this wrapper, not of the Tavily API, so they are stripped
+ * before reaching super() rather than sent as unknown request keys.
  */
 type SearchCacheOptions = {
 	ttlMs?: number;
@@ -142,5 +141,4 @@ function createSearchTool(params: NormalizedTavilySearchParams): TavilySearch {
 	return new NormalizedTavilySearch(params);
 }
 
-export type { SearchCacheOptions };
 export { createSearchTool, normalizeSearchQuery };

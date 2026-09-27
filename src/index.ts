@@ -23,4 +23,5 @@ const report = generateReport({
 	validationIssues: result.validationIssues as string[] | undefined,
 	summary: result.summary?.summary,
 });
+
 console.log(report);

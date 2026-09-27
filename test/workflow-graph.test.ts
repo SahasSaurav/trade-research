@@ -147,7 +147,24 @@ describe("workflow graph", () => {
 			.filter((edge) => edge.source === START)
 			.map((edge) => edge.target);
 
-		expect(startTargets).toEqual(["tickerValidation"]);
+		// "tickerCheck", not "tickerValidation": the state channel is already
+		// called tickerValidation, and LangGraph rejects a node that shares a
+		// name with a channel. See the node/channel collision test below.
+		expect(startTargets).toEqual(["tickerCheck"]);
+	});
+
+	it("never names a node after a state channel", () => {
+		// addNode throws on a node/channel name clash, which kills
+		// createWorkflow and every test that compiles the graph. The error
+		// names the channel but not the node, so it reads like a store or
+		// checkpointer problem.
+		//
+		// Convention: nodes are named for the job, channels for the value they
+		// hold — tickerCheck -> tickerValidation, dataValidation ->
+		// validation.
+		const { agents } = buildAgents();
+
+		expect(() => createGraph(agents)).not.toThrow();
 	});
 
 	it("halts to the summary when validation fails, skipping the decision", async () => {

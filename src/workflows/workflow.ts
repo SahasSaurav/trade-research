@@ -22,17 +22,11 @@ type WorkflowDeps = {
 };
 
 /**
- * One model instance is shared by all six agents, so per-agent cost is a
- * function of this single choice rather than of the agents themselves.
- *
- * temperature is passed to all four providers. It used to reach only the two
- * that were written with it, so MODEL_TEMPERATURE was silently ignored on
- * openai and xai and those two providers ran at whatever their own default
- * is. That matters for cost, not just consistency: every agent here conforms
- * to a zod schema via toolStrategy, and a high temperature on a structured
- * extraction task mostly buys malformed output, which fails validation and
- * sends the analyst down the repair path — a whole extra agent run. Lower
- * MODEL_TEMPERATURE is the cheapest way to reduce repair frequency.
+ * One model instance is shared by all six agents, so anything dropped here is
+ * dropped pipeline-wide. temperature used to reach only two of the four
+ * providers, leaving MODEL_TEMPERATURE ignored on openai and xai — a cost bug,
+ * since a hot temperature on a zod-constrained extraction buys malformed
+ * output, and malformed output routes the analyst into a repair run.
  */
 function createModel(config: ReturnType<typeof loadConfig>): BaseChatModel {
 	switch (config.model.provider) {
@@ -62,8 +56,6 @@ function createModel(config: ReturnType<typeof loadConfig>): BaseChatModel {
 				model: config.model.name,
 				baseUrl: config.ollama.baseUrl,
 				temperature: config.model.temperature,
-				// Left undefined unless OLLAMA_NUM_CTX is set, so the model's
-				// own default still applies by default.
 				numCtx: config.ollama.numCtx,
 			});
 	}
@@ -109,10 +101,6 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 	 *
 	 * chunksPerSource is only honoured at searchDepth "advanced", so it is set
 	 * here and deliberately not on newsSearch, where Tavily ignores it.
-	 *
-	 * Both tools take their sizing from config so these numbers can be tuned
-	 * per environment without a code change; the defaults in the schema
-	 * reproduce what is written below.
 	 */
 	const cacheOptions = {
 		ttlMs: config.search.cacheTtlMs,

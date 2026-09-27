@@ -72,23 +72,18 @@ describe("normalizeSearchQuery", () => {
 });
 
 /**
- * The result cache is the only thing standing between a re-run and a full
- * second bill, so its behaviour is pinned here rather than left to the five
- * minute default to be obviously correct.
+ * The cache is the only thing between a re-run and a full second bill.
  *
- * The fake is injected through TavilySearch's own `apiWrapper` seam, so these
- * tests exercise the real `_call` — the cache, the site-operator rewrite and
- * the error handling all run for real. Only the HTTP boundary is replaced.
+ * The fake is injected through TavilySearch's own `apiWrapper` seam, so the
+ * real _call runs — cache, site-operator rewrite and error handling included.
+ * Only the HTTP boundary is replaced.
  */
 describe("search result cache", () => {
 	type RawResultsArgs = Record<string, unknown>;
 
 	/**
-	 * Extends the real wrapper rather than standing in for it with an object
-	 * literal: convertCamelToSnakeCase is protected, so only a subclass can
-	 * satisfy TavilySearchAPIWrapper. Subclassing also keeps the test honest
-	 * about the seam — this is the documented injection point, and everything
-	 * above it, the cache and the query rewrite included, runs for real.
+	 * Subclasses the real wrapper because convertCamelToSnakeCase is
+	 * protected, so only a subclass satisfies TavilySearchAPIWrapper.
 	 */
 	class FakeWrapper extends TavilySearchAPIWrapper {
 		readonly calls: RawResultsArgs[] = [];
@@ -126,7 +121,7 @@ describe("search result cache", () => {
 		expect(apiWrapper.calls).toHaveLength(1);
 	});
 
-	it("caches across the site-operator rewrite, since both forms normalise alike", async () => {
+	it("treats a recovered site: domain as a different query", async () => {
 		const apiWrapper = new FakeWrapper();
 		const search = createSearchTool({ tavilyApiKey: "k", apiWrapper });
 
@@ -135,8 +130,10 @@ describe("search result cache", () => {
 			query: "AMZN analyst rating site:tipranks.com",
 		});
 
-		// Different raw query, same normalised input, so the second call is a
-		// hit. The rewrite is what makes near-duplicate agent queries dedupe.
+		// Same search terms, but the rewrite adds a domain filter, so this is
+		// a miss. A key built from the raw query rather than the normalised
+		// input would collapse these into one entry and serve unscoped results
+		// for a domain-scoped question.
 		expect(apiWrapper.calls).toHaveLength(2);
 		expect(apiWrapper.calls[1]).toMatchObject({
 			includeDomains: ["tipranks.com"],
@@ -144,9 +141,9 @@ describe("search result cache", () => {
 	});
 
 	it("does not cache an error result", async () => {
-		// TavilySearch._call swallows failures and returns { error }, so an
-		// error can reach the cache like any other value. Caching one would
-		// pin a transient outage in place for the whole TTL.
+		// _call swallows failures into { error }, so an error can reach the
+		// cache like any other value. Caching one would pin a transient outage
+		// in place for the whole TTL.
 		let attempts = 0;
 		class FlakyWrapper extends FakeWrapper {
 			override async rawResults(params: never) {
@@ -224,8 +221,7 @@ describe("search result cache", () => {
 
 	it("keeps the cache options out of the Tavily request body", async () => {
 		// ttlMs and maxEntries describe this wrapper, not the API. Forwarding
-		// them would put unknown keys in the request, which Tavily rejects
-		// with a 422.
+		// them puts unknown keys in the request.
 		const apiWrapper = new FakeWrapper();
 		const search = createSearchTool({
 			tavilyApiKey: "k",

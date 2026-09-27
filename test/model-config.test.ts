@@ -3,17 +3,12 @@ import { createModel } from "@src/workflows/workflow.js";
 import { describe, expect, it } from "vitest";
 
 /**
- * The six agents all share one model instance, so anything the model factory
- * drops is dropped for the whole pipeline. Two of the four provider branches
- * used to omit `temperature` entirely, which meant MODEL_TEMPERATURE was
- * silently ignored on openai and xai. That is a cost bug, not a tidiness one:
- * every agent here conforms to a zod schema, and a hot temperature on a
- * structured extraction mostly buys malformed output, which fails validation
- * and sends the analyst down the repair branch — a whole extra agent run.
+ * The six agents share one model instance, so anything the factory drops is
+ * dropped pipeline-wide. Two of the four provider branches used to omit
+ * temperature, leaving MODEL_TEMPERATURE ignored on openai and xai.
  *
- * createModel is exercised directly rather than through createWorkflow,
- * because createWorkflow compiles the graph and would drag an unrelated
- * failure into a test about model construction.
+ * createModel is exercised directly because createWorkflow compiles the graph,
+ * which would drag an unrelated failure into a test about model construction.
  */
 
 type ModelLike = {
@@ -23,9 +18,8 @@ type ModelLike = {
 };
 
 /**
- * ChatOpenAI and ChatOllama keep the value on the instance; ChatGoogle keeps
- * the whole constructor payload under `params`. The assertion is that the
- * configured value reached the model, not which of the two shapes it landed in.
+ * ChatOpenAI and ChatOllama keep the value on the instance, ChatGoogle under
+ * `params`. The assertion is that the value arrived, not where it landed.
  */
 function temperatureOf(model: unknown): number | undefined {
 	const m = model as ModelLike;
@@ -49,9 +43,8 @@ describe("createModel", () => {
 		["google-genai", "GOOGLE_API_KEY"],
 		["ollama", "OLLAMA_BASE_URL"],
 	])("passes temperature to the %s branch", (provider) => {
-		// Regression guard for the two branches that omitted it. Without this
-		// test a future refactor can drop the field again silently, because
-		// nothing else in the suite constructs these models.
+		// Guards the two branches that omitted it. Nothing else in the suite
+		// constructs these models, so a refactor could drop the field silently.
 		const model = createModel(
 			loadConfig(env({ MODEL_PROVIDER: provider, MODEL_TEMPERATURE: "0.1" })),
 		);
@@ -61,7 +54,7 @@ describe("createModel", () => {
 
 	it("passes temperature 0 through unchanged", () => {
 		// 0 is falsy, so a `temperature || default` shortcut anywhere in the
-		// factory would silently turn this into a non-zero temperature.
+		// factory would turn this into a non-zero temperature.
 		const model = createModel(
 			loadConfig(env({ MODEL_PROVIDER: "openai", MODEL_TEMPERATURE: "0" })),
 		);
@@ -78,8 +71,8 @@ describe("createModel", () => {
 	});
 
 	it("leaves the ollama context window unset so the model default wins", () => {
-		// Not a number and not 0: forcing a value here would shrink the
-		// context for anyone who never asked for it.
+		// Not a number and not 0: forcing a value would shrink the context for
+		// anyone who never asked for it.
 		const model = createModel(
 			loadConfig(env({ MODEL_PROVIDER: "ollama" })),
 		) as ModelLike;

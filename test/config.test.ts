@@ -126,10 +126,9 @@ describe("loadConfig", () => {
 });
 
 /**
- * The search and budget knobs are the cost model, so their defaults are the
- * values that were previously hardcoded at the call sites. These tests pin both
- * halves of that contract: setting nothing must reproduce the old behaviour
- * exactly, and setting something must actually change it.
+ * The defaults are the values that were hardcoded at the call sites, so both
+ * halves are pinned: setting nothing must reproduce the old behaviour, and
+ * setting something must change it.
  */
 describe("loadConfig search sizing", () => {
 	it("defaults to the reference sizing the workflow already used", () => {
@@ -177,8 +176,8 @@ describe("loadConfig search sizing", () => {
 	});
 
 	it.each([
-		// Zero results would make every search fail, and zero chunks would
-		// return pages with no readable content.
+		// Zero results makes every search fail; zero chunks returns pages with
+		// no readable content.
 		["SEARCH_REFERENCE_MAX_RESULTS", "0", "search.reference.maxResults"],
 		[
 			"SEARCH_REFERENCE_CHUNKS_PER_SOURCE",
@@ -186,8 +185,8 @@ describe("loadConfig search sizing", () => {
 			"search.reference.chunksPerSource",
 		],
 		["SEARCH_NEWS_MAX_RESULTS", "0", "search.news.maxResults"],
-		// A zero-size cache would silently disable caching, which reads as a
-		// free choice rather than a mistake.
+		// A zero-size cache silently disables caching, which reads as a free
+		// choice rather than a mistake.
 		["SEARCH_CACHE_MAX_ENTRIES", "0", "search.cacheMaxEntries"],
 	])("rejects %s=%s", (key, value, path) => {
 		expect(() => loadConfig(env({ [key]: value }))).toThrow(ConfigError);
@@ -241,8 +240,8 @@ describe("loadConfig budgets", () => {
 	});
 
 	it("allows zero repair attempts, which disables the repair branch", () => {
-		// 0 is the meaningful setting for an exploratory run: a partial report
-		// beats paying for three full analyst invocations.
+		// The meaningful setting for an exploratory run: a partial report beats
+		// paying for three full analyst invocations.
 		expect(loadConfig(env({ BUDGET_ANALYST_ATTEMPTS: "0" }))).toMatchObject({
 			budgets: { analystAttempts: 0 },
 		});
@@ -255,8 +254,6 @@ describe("loadConfig budgets", () => {
 	});
 
 	it("rejects zero research attempts, which would skip the agent entirely", () => {
-		// researchAttempts has a floor of 1 where analystAttempts floors at 0:
-		// zero retries is a choice, zero attempts is not a run at all.
 		expect(() => loadConfig(env({ BUDGET_RESEARCH_ATTEMPTS: "0" }))).toThrow(
 			ConfigError,
 		);
@@ -275,7 +272,7 @@ describe("loadConfig budgets", () => {
 describe("loadConfig ollama numCtx", () => {
 	it("leaves the context window unset by default", () => {
 		// Undefined, not a number: the model's own default has to keep winning
-		// or this setting would silently shrink someone's context.
+		// or this would silently shrink someone's context.
 		expect(loadConfig(env()).ollama.numCtx).toBeUndefined();
 	});
 

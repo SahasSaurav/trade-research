@@ -153,4 +153,59 @@ describe("runResearch", () => {
 		expect(outcome.data).toBeNull();
 		expect(outcome.error).toBe("[object Object]");
 	});
+
+	describe("attempt budget", () => {
+		it("defaults to three attempts when no budget is passed", async () => {
+			// The default has to equal the previous hardcoded constant, or
+			// making the budget configurable would quietly change behaviour for
+			// every existing caller.
+			const invoke = vi.fn(async () => {
+				throw providerError("still failing", { status: 503 });
+			});
+
+			await runResearch(invoke, schema);
+
+			expect(invoke).toHaveBeenCalledTimes(3);
+		});
+
+		it("honours a smaller attempt budget", async () => {
+			// One attempt means no retry at all, which is the whole point of
+			// exposing the budget: a caller that has already spent an agent
+			// invocation in a sibling branch may not want three more.
+			const invoke = vi.fn(async () => {
+				throw providerError("transient", { status: 500 });
+			});
+
+			const outcome = await runResearch(invoke, schema, 1);
+
+			expect(invoke).toHaveBeenCalledTimes(1);
+			expect(outcome.error).toBe("transient");
+		});
+
+		it("retries up to the given budget and then stops", async () => {
+			const invoke = vi.fn(async () => {
+				throw providerError("transient", { status: 500 });
+			});
+
+			await runResearch(invoke, schema, 2);
+
+			expect(invoke).toHaveBeenCalledTimes(2);
+		});
+
+		it("still succeeds inside a larger budget", async () => {
+			let calls = 0;
+			const outcome = await runResearch(
+				async () => {
+					calls += 1;
+					if (calls < 2) throw providerError("transient", { status: 429 });
+					return { value: 5 };
+				},
+				schema,
+				5,
+			);
+
+			expect(calls).toBe(2);
+			expect(outcome).toEqual({ data: { value: 5 }, error: null });
+		});
+	});
 });

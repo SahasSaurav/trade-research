@@ -125,6 +125,178 @@ describe("loadConfig", () => {
 	});
 });
 
+/**
+ * The search and budget knobs are the cost model, so their defaults are the
+ * values that were previously hardcoded at the call sites. These tests pin both
+ * halves of that contract: setting nothing must reproduce the old behaviour
+ * exactly, and setting something must actually change it.
+ */
+describe("loadConfig search sizing", () => {
+	it("defaults to the reference sizing the workflow already used", () => {
+		const config = loadConfig(env());
+
+		expect(config.search.reference).toEqual({
+			maxResults: 5,
+			chunksPerSource: 1,
+			searchDepth: "advanced",
+		});
+		expect(config.search.news).toEqual({ maxResults: 5, timeRange: "day" });
+		expect(config.search.cacheTtlMs).toBe(300_000);
+		expect(config.search.cacheMaxEntries).toBe(100);
+	});
+
+	it("reads every search knob from the environment", () => {
+		const config = loadConfig(
+			env({
+				SEARCH_REFERENCE_MAX_RESULTS: "3",
+				SEARCH_REFERENCE_CHUNKS_PER_SOURCE: "2",
+				SEARCH_REFERENCE_DEPTH: "basic",
+				SEARCH_NEWS_MAX_RESULTS: "8",
+				SEARCH_NEWS_TIME_RANGE: "week",
+				SEARCH_CACHE_TTL_MS: "60000",
+				SEARCH_CACHE_MAX_ENTRIES: "25",
+			}),
+		);
+
+		expect(config.search.reference).toEqual({
+			maxResults: 3,
+			chunksPerSource: 2,
+			searchDepth: "basic",
+		});
+		expect(config.search.news).toEqual({ maxResults: 8, timeRange: "week" });
+		expect(config.search.cacheTtlMs).toBe(60_000);
+		expect(config.search.cacheMaxEntries).toBe(25);
+	});
+
+	it.each([
+		["SEARCH_REFERENCE_DEPTH", "search.reference.searchDepth"],
+		["SEARCH_NEWS_TIME_RANGE", "search.news.timeRange"],
+	])("rejects an unknown %s", (key, path) => {
+		expect(() => loadConfig(env({ [key]: "turbo" }))).toThrow(ConfigError);
+		expect(() => loadConfig(env({ [key]: "turbo" }))).toThrow(path);
+	});
+
+	it.each([
+		// Zero results would make every search fail, and zero chunks would
+		// return pages with no readable content.
+		["SEARCH_REFERENCE_MAX_RESULTS", "0", "search.reference.maxResults"],
+		[
+			"SEARCH_REFERENCE_CHUNKS_PER_SOURCE",
+			"0",
+			"search.reference.chunksPerSource",
+		],
+		["SEARCH_NEWS_MAX_RESULTS", "0", "search.news.maxResults"],
+		// A zero-size cache would silently disable caching, which reads as a
+		// free choice rather than a mistake.
+		["SEARCH_CACHE_MAX_ENTRIES", "0", "search.cacheMaxEntries"],
+	])("rejects %s=%s", (key, value, path) => {
+		expect(() => loadConfig(env({ [key]: value }))).toThrow(ConfigError);
+		expect(() => loadConfig(env({ [key]: value }))).toThrow(path);
+	});
+
+	it("rejects a negative cache TTL", () => {
+		expect(() => loadConfig(env({ SEARCH_CACHE_TTL_MS: "-1" }))).toThrow(
+			ConfigError,
+		);
+	});
+
+	it("accepts a zero cache TTL, which is the documented way to disable it", () => {
+		expect(
+			loadConfig(env({ SEARCH_CACHE_TTL_MS: "0" })).search.cacheTtlMs,
+		).toBe(0);
+	});
+
+	it("rejects a fractional result count", () => {
+		// process.env is all strings, so without .int() a typo like "5.5"
+		// would reach Tavily as a nonsense max_results.
+		expect(() =>
+			loadConfig(env({ SEARCH_REFERENCE_MAX_RESULTS: "5.5" })),
+		).toThrow(ConfigError);
+	});
+
+	it("rejects a non-numeric result count", () => {
+		expect(() => loadConfig(env({ SEARCH_NEWS_MAX_RESULTS: "lots" }))).toThrow(
+			ConfigError,
+		);
+	});
+});
+
+describe("loadConfig budgets", () => {
+	it("defaults to the multipliers the graph already used", () => {
+		const config = loadConfig(env());
+
+		expect(config.budgets).toEqual({
+			analystAttempts: 2,
+			researchAttempts: 3,
+		});
+	});
+
+	it("reads both budgets from the environment", () => {
+		const config = loadConfig(
+			env({ BUDGET_ANALYST_ATTEMPTS: "0", BUDGET_RESEARCH_ATTEMPTS: "1" }),
+		);
+
+		expect(config.budgets.analystAttempts).toBe(0);
+		expect(config.budgets.researchAttempts).toBe(1);
+	});
+
+	it("allows zero repair attempts, which disables the repair branch", () => {
+		// 0 is the meaningful setting for an exploratory run: a partial report
+		// beats paying for three full analyst invocations.
+		expect(loadConfig(env({ BUDGET_ANALYST_ATTEMPTS: "0" }))).toMatchObject({
+			budgets: { analystAttempts: 0 },
+		});
+	});
+
+	it("rejects a negative attempt count", () => {
+		expect(() => loadConfig(env({ BUDGET_ANALYST_ATTEMPTS: "-1" }))).toThrow(
+			ConfigError,
+		);
+	});
+
+	it("rejects zero research attempts, which would skip the agent entirely", () => {
+		// researchAttempts has a floor of 1 where analystAttempts floors at 0:
+		// zero retries is a choice, zero attempts is not a run at all.
+		expect(() => loadConfig(env({ BUDGET_RESEARCH_ATTEMPTS: "0" }))).toThrow(
+			ConfigError,
+		);
+	});
+
+	it("caps the attempt counts so a typo cannot run away", () => {
+		expect(() => loadConfig(env({ BUDGET_ANALYST_ATTEMPTS: "99" }))).toThrow(
+			ConfigError,
+		);
+		expect(() => loadConfig(env({ BUDGET_RESEARCH_ATTEMPTS: "99" }))).toThrow(
+			ConfigError,
+		);
+	});
+});
+
+describe("loadConfig ollama numCtx", () => {
+	it("leaves the context window unset by default", () => {
+		// Undefined, not a number: the model's own default has to keep winning
+		// or this setting would silently shrink someone's context.
+		expect(loadConfig(env()).ollama.numCtx).toBeUndefined();
+	});
+
+	it("reads an explicit context window", () => {
+		expect(loadConfig(env({ OLLAMA_NUM_CTX: "8192" })).ollama.numCtx).toBe(
+			8192,
+		);
+	});
+
+	it.each([
+		["zero", "0"],
+		["negative", "-4096"],
+		["fractional", "4096.5"],
+		["non-numeric", "big"],
+	])("rejects a %s context window", (_label, value) => {
+		expect(() => loadConfig(env({ OLLAMA_NUM_CTX: value }))).toThrow(
+			ConfigError,
+		);
+	});
+});
+
 describe("getConfig", () => {
 	it("reads process.env, unlike loadConfig's explicit argument", () => {
 		// getConfig is the zero-arg form the app actually calls, so it has to

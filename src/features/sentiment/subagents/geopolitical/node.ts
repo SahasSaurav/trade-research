@@ -4,7 +4,7 @@ import { runResearch } from "@src/features/sentiment/workflow/research.js";
 import type { SentimentResearchStateType } from "@src/features/sentiment/workflow/state.js";
 import type { ReactAgent } from "langchain";
 
-function createGeopoliticalNode(agent: ReactAgent) {
+function createGeopoliticalNode(agent: ReactAgent, researchAttempts?: number) {
 	return async (state: SentimentResearchStateType) => {
 		const outcome = await runResearch(
 			async () =>
@@ -19,6 +19,7 @@ function createGeopoliticalNode(agent: ReactAgent) {
 					})
 				).structuredResponse,
 			geopoliticalResearchSchema,
+			researchAttempts,
 		);
 		return outcome.error
 			? { geopoliticalResearch: undefined, geopoliticalError: outcome.error }

@@ -21,17 +21,32 @@ type WorkflowDeps = {
 	agents: GraphAgents;
 };
 
+/**
+ * One model instance is shared by all six agents, so per-agent cost is a
+ * function of this single choice rather than of the agents themselves.
+ *
+ * temperature is passed to all four providers. It used to reach only the two
+ * that were written with it, so MODEL_TEMPERATURE was silently ignored on
+ * openai and xai and those two providers ran at whatever their own default
+ * is. That matters for cost, not just consistency: every agent here conforms
+ * to a zod schema via toolStrategy, and a high temperature on a structured
+ * extraction task mostly buys malformed output, which fails validation and
+ * sends the analyst down the repair path — a whole extra agent run. Lower
+ * MODEL_TEMPERATURE is the cheapest way to reduce repair frequency.
+ */
 function createModel(config: ReturnType<typeof loadConfig>): BaseChatModel {
 	switch (config.model.provider) {
 		case "openai":
 			return new ChatOpenAI({
 				model: config.model.name,
 				apiKey: config.openai.apiKey,
+				temperature: config.model.temperature,
 			});
 		case "xai":
 			return new ChatOpenAI({
 				model: config.model.name,
 				apiKey: config.xai.apiKey,
+				temperature: config.model.temperature,
 				configuration: {
 					baseURL: "https://api.x.ai/v1",
 				},
@@ -47,6 +62,9 @@ function createModel(config: ReturnType<typeof loadConfig>): BaseChatModel {
 				model: config.model.name,
 				baseUrl: config.ollama.baseUrl,
 				temperature: config.model.temperature,
+				// Left undefined unless OLLAMA_NUM_CTX is set, so the model's
+				// own default still applies by default.
+				numCtx: config.ollama.numCtx,
 			});
 	}
 }
@@ -91,22 +109,33 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 	 *
 	 * chunksPerSource is only honoured at searchDepth "advanced", so it is set
 	 * here and deliberately not on newsSearch, where Tavily ignores it.
+	 *
+	 * Both tools take their sizing from config so these numbers can be tuned
+	 * per environment without a code change; the defaults in the schema
+	 * reproduce what is written below.
 	 */
+	const cacheOptions = {
+		ttlMs: config.search.cacheTtlMs,
+		maxEntries: config.search.cacheMaxEntries,
+	};
+
 	const referenceSearch =
 		deps.referenceSearch ??
 		createSearchTool({
 			tavilyApiKey: config.tavily.apiKey,
-			maxResults: 5,
-			chunksPerSource: 1,
-			searchDepth: "advanced",
+			maxResults: config.search.reference.maxResults,
+			chunksPerSource: config.search.reference.chunksPerSource,
+			searchDepth: config.search.reference.searchDepth,
+			...cacheOptions,
 		});
 
 	const newsSearch =
 		deps.newsSearch ??
 		createSearchTool({
 			tavilyApiKey: config.tavily.apiKey,
-			maxResults: 5,
-			timeRange: "day",
+			maxResults: config.search.news.maxResults,
+			timeRange: config.search.news.timeRange,
+			...cacheOptions,
 		});
 
 	const valuationAgent =
@@ -124,15 +153,21 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 	const decisionAgent = deps.agents?.decision ?? createDecisionAgent({ model });
 	const summaryAgent = deps.agents?.summary ?? createSummaryAgent({ model });
 
-	const workflow = createGraph({
-		valuation: valuationAgent,
-		analyst: analystAgent,
-		newsSentiment: newsSentimentAgent,
-		geopolitical: geopoliticalAgent,
-		decision: decisionAgent,
-		summary: summaryAgent,
-		tickerSearch: referenceSearch,
-	});
+	const workflow = createGraph(
+		{
+			valuation: valuationAgent,
+			analyst: analystAgent,
+			newsSentiment: newsSentimentAgent,
+			geopolitical: geopoliticalAgent,
+			decision: decisionAgent,
+			summary: summaryAgent,
+			tickerSearch: referenceSearch,
+		},
+		{
+			maxAnalystAttempts: config.budgets.analystAttempts,
+			researchAttempts: config.budgets.researchAttempts,
+		},
+	);
 
 	return {
 		model,
@@ -149,4 +184,4 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 }
 
 export type { WorkflowDeps };
-export { createWorkflow };
+export { createModel, createWorkflow };

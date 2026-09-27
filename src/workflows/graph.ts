@@ -1,4 +1,10 @@
-import { END, MemorySaver, InMemoryStore, START, StateGraph } from "@langchain/langgraph";
+import {
+	END,
+	InMemoryStore,
+	MemorySaver,
+	START,
+	StateGraph,
+} from "@langchain/langgraph";
 import type { TavilySearch } from "@langchain/tavily";
 import {
 	createAnalystNode,
@@ -14,7 +20,6 @@ import type { GraphState } from "@src/workflows/state.js";
 import { WorkflowState } from "@src/workflows/state.js";
 import type { ReactAgent } from "langchain";
 
-const MAX_ANALYST_ATTEMPTS = 2;
 const NODE_TIMEOUT_MS = 99_999;
 
 type Route = "decisionAgent" | "analystRepair" | "summaryAgent";
@@ -29,7 +34,27 @@ type GraphAgents = {
 	tickerSearch?: TavilySearch;
 };
 
-function createGraph(agents: GraphAgents) {
+/**
+ * How many repair rounds the analyst gets before the run gives up on it.
+ *
+ * Each round is a complete re-invocation of the analyst agent, so this is a
+ * multiplier on one of the most expensive branches rather than an increment:
+ * the default of 2 permits three full analyst runs, and the fourth artifact
+ * write is skipped. 0 disables repair entirely and sends the first result
+ * straight to validation, which is the right setting when a run is exploratory
+ * and a partial report beats a re-run.
+ */
+const DEFAULT_MAX_ANALYST_ATTEMPTS = 2;
+
+type GraphOptions = {
+	maxAnalystAttempts?: number;
+	researchAttempts?: number;
+};
+
+function createGraph(agents: GraphAgents, options: GraphOptions = {}) {
+	const maxAnalystAttempts =
+		options.maxAnalystAttempts ?? DEFAULT_MAX_ANALYST_ATTEMPTS;
+
 	const graphBuilder = new StateGraph(WorkflowState)
 		.addNode(
 			"tickerValidation",
@@ -45,7 +70,11 @@ function createGraph(agents: GraphAgents) {
 		})
 		.addNode(
 			"sentimentAgent",
-			createSentimentNode(agents.newsSentiment, agents.geopolitical),
+			createSentimentNode(
+				agents.newsSentiment,
+				agents.geopolitical,
+				options.researchAttempts,
+			),
 			{
 				timeout: NODE_TIMEOUT_MS,
 			},
@@ -76,7 +105,7 @@ function createGraph(agents: GraphAgents) {
 			if (!validation) return "summaryAgent";
 			if (
 				validation.analystIssues.length > 0 &&
-				(state.analystAttempts ?? 0) < MAX_ANALYST_ATTEMPTS
+				(state.analystAttempts ?? 0) < maxAnalystAttempts
 			) {
 				return "analystRepair";
 			}
@@ -88,7 +117,7 @@ function createGraph(agents: GraphAgents) {
 
 	return graphBuilder.compile({
 		checkpointer: new MemorySaver(),
-		store: new InMemoryStore()
+		store: new InMemoryStore(),
 	});
 }
 

@@ -10,10 +10,17 @@ import type { ReactAgent } from "langchain";
 function createSentimentGraph(
 	newsAgent: ReactAgent,
 	geopoliticalAgent: ReactAgent,
+	researchAttempts?: number,
 ) {
 	const graph = new StateGraph(SentimentResearchState)
-		.addNode("newsSentimentSubagent", createNewsSentimentNode(newsAgent))
-		.addNode("geopoliticalSubagent", createGeopoliticalNode(geopoliticalAgent))
+		.addNode(
+			"newsSentimentSubagent",
+			createNewsSentimentNode(newsAgent, researchAttempts),
+		)
+		.addNode(
+			"geopoliticalSubagent",
+			createGeopoliticalNode(geopoliticalAgent, researchAttempts),
+		)
 		.addNode("mergeSentimentResearch", (state: SentimentResearchStateType) => {
 			const news: NewsSentimentResearch | undefined = state.newsResearch;
 			const geopolitical: GeopoliticalResearch | undefined =

@@ -1,5 +1,9 @@
-import { normalizeSearchQuery } from "@src/features/search/tool.js";
-import { describe, expect, it } from "vitest";
+import { TavilySearchAPIWrapper } from "@langchain/tavily";
+import {
+	createSearchTool,
+	normalizeSearchQuery,
+} from "@src/features/search/tool.js";
+import { describe, expect, it, vi } from "vitest";
 
 /**
  * The Tavily API answers a query built purely from `site:` operators with a
@@ -63,6 +67,197 @@ describe("normalizeSearchQuery", () => {
 		expect(normalizeSearchQuery("sitewalk holdings")).toEqual({
 			query: "sitewalk holdings",
 			includeDomains: [],
+		});
+	});
+});
+
+/**
+ * The result cache is the only thing standing between a re-run and a full
+ * second bill, so its behaviour is pinned here rather than left to the five
+ * minute default to be obviously correct.
+ *
+ * The fake is injected through TavilySearch's own `apiWrapper` seam, so these
+ * tests exercise the real `_call` — the cache, the site-operator rewrite and
+ * the error handling all run for real. Only the HTTP boundary is replaced.
+ */
+describe("search result cache", () => {
+	type RawResultsArgs = Record<string, unknown>;
+
+	/**
+	 * Extends the real wrapper rather than standing in for it with an object
+	 * literal: convertCamelToSnakeCase is protected, so only a subclass can
+	 * satisfy TavilySearchAPIWrapper. Subclassing also keeps the test honest
+	 * about the seam — this is the documented injection point, and everything
+	 * above it, the cache and the query rewrite included, runs for real.
+	 */
+	class FakeWrapper extends TavilySearchAPIWrapper {
+		readonly calls: RawResultsArgs[] = [];
+
+		constructor() {
+			super({ tavilyApiKey: "k" });
+		}
+
+		override async rawResults(params: never) {
+			const args = params as unknown as RawResultsArgs;
+			this.calls.push(args);
+			return {
+				query: String(args.query),
+				response_time: 0.01,
+				results: [
+					{
+						title: "t",
+						url: "https://example.com",
+						content: "c",
+						score: 0.9,
+						raw_content: null,
+					},
+				],
+			};
+		}
+	}
+
+	it("serves a repeated query from cache without a second API call", async () => {
+		const apiWrapper = new FakeWrapper();
+		const search = createSearchTool({ tavilyApiKey: "k", apiWrapper });
+
+		await search.invoke({ query: "AMZN trailing EPS" });
+		await search.invoke({ query: "AMZN trailing EPS" });
+
+		expect(apiWrapper.calls).toHaveLength(1);
+	});
+
+	it("caches across the site-operator rewrite, since both forms normalise alike", async () => {
+		const apiWrapper = new FakeWrapper();
+		const search = createSearchTool({ tavilyApiKey: "k", apiWrapper });
+
+		await search.invoke({ query: "AMZN analyst rating" });
+		await search.invoke({
+			query: "AMZN analyst rating site:tipranks.com",
+		});
+
+		// Different raw query, same normalised input, so the second call is a
+		// hit. The rewrite is what makes near-duplicate agent queries dedupe.
+		expect(apiWrapper.calls).toHaveLength(2);
+		expect(apiWrapper.calls[1]).toMatchObject({
+			includeDomains: ["tipranks.com"],
+		});
+	});
+
+	it("does not cache an error result", async () => {
+		// TavilySearch._call swallows failures and returns { error }, so an
+		// error can reach the cache like any other value. Caching one would
+		// pin a transient outage in place for the whole TTL.
+		let attempts = 0;
+		class FlakyWrapper extends FakeWrapper {
+			override async rawResults(params: never) {
+				attempts += 1;
+				if (attempts === 1) throw new Error("tavily is down");
+				return super.rawResults(params);
+			}
+		}
+		const search = createSearchTool({
+			tavilyApiKey: "k",
+			apiWrapper: new FlakyWrapper(),
+		});
+
+		const first = await search.invoke({ query: "AMZN price" });
+		const second = await search.invoke({ query: "AMZN price" });
+
+		expect(first).toHaveProperty("error");
+		expect(second).toHaveProperty("results");
+		expect(attempts).toBe(2);
+	});
+
+	it("re-requests once the TTL has elapsed", async () => {
+		vi.useFakeTimers();
+		try {
+			const apiWrapper = new FakeWrapper();
+			const search = createSearchTool({
+				tavilyApiKey: "k",
+				apiWrapper,
+				ttlMs: 60_000,
+			});
+
+			await search.invoke({ query: "AMZN price" });
+			vi.advanceTimersByTime(59_000);
+			await search.invoke({ query: "AMZN price" });
+			expect(apiWrapper.calls).toHaveLength(1);
+
+			vi.advanceTimersByTime(2_000);
+			await search.invoke({ query: "AMZN price" });
+			expect(apiWrapper.calls).toHaveLength(2);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it("treats a zero TTL as caching disabled", async () => {
+		const apiWrapper = new FakeWrapper();
+		const search = createSearchTool({
+			tavilyApiKey: "k",
+			apiWrapper,
+			ttlMs: 0,
+		});
+
+		await search.invoke({ query: "AMZN price" });
+		await search.invoke({ query: "AMZN price" });
+
+		expect(apiWrapper.calls).toHaveLength(2);
+	});
+
+	it("evicts the oldest entry once maxEntries is exceeded", async () => {
+		const apiWrapper = new FakeWrapper();
+		const search = createSearchTool({
+			tavilyApiKey: "k",
+			apiWrapper,
+			maxEntries: 2,
+		});
+
+		await search.invoke({ query: "first" });
+		await search.invoke({ query: "second" });
+		await search.invoke({ query: "third" });
+		// "first" was evicted, so asking again costs a round trip.
+		await search.invoke({ query: "first" });
+
+		expect(apiWrapper.calls).toHaveLength(4);
+	});
+
+	it("keeps the cache options out of the Tavily request body", async () => {
+		// ttlMs and maxEntries describe this wrapper, not the API. Forwarding
+		// them would put unknown keys in the request, which Tavily rejects
+		// with a 422.
+		const apiWrapper = new FakeWrapper();
+		const search = createSearchTool({
+			tavilyApiKey: "k",
+			apiWrapper,
+			ttlMs: 1_000,
+			maxEntries: 7,
+		});
+
+		await search.invoke({ query: "AMZN price" });
+
+		expect(apiWrapper.calls[0]).not.toHaveProperty("ttlMs");
+		expect(apiWrapper.calls[0]).not.toHaveProperty("maxEntries");
+	});
+
+	it("still forwards the real search sizing to Tavily", async () => {
+		// The counterpart to the test above: stripping the cache keys must not
+		// strip the parameters the API actually needs.
+		const apiWrapper = new FakeWrapper();
+		const search = createSearchTool({
+			tavilyApiKey: "k",
+			apiWrapper,
+			maxResults: 5,
+			chunksPerSource: 1,
+			searchDepth: "advanced",
+		});
+
+		await search.invoke({ query: "AMZN price" });
+
+		expect(apiWrapper.calls[0]).toMatchObject({
+			maxResults: 5,
+			chunksPerSource: 1,
+			searchDepth: "advanced",
 		});
 	});
 });

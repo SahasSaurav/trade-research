@@ -41,11 +41,21 @@ function isProviderError(error: unknown): boolean {
 	);
 }
 
+/**
+ * Retries only ever fire on a transient provider error — a 429, a 5xx, a
+ * dropped socket — never on a bad artifact, which returns immediately.
+ *
+ * Each attempt re-invokes the whole agent, so this is a multiplier on the most
+ * expensive part of a sentiment branch rather than an increment. It is
+ * overridable per call because a caller that has already burned one agent
+ * invocation in a sibling branch may not want three more.
+ */
 async function runResearch<T>(
 	invoke: () => Promise<unknown>,
 	schema: z.ZodType<T>,
+	maxAttempts: number = MAX_RESEARCH_ATTEMPTS,
 ): Promise<ResearchOutcome<T>> {
-	for (let attempt = 1; attempt <= MAX_RESEARCH_ATTEMPTS; attempt += 1) {
+	for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
 		try {
 			const result = schema.safeParse(await invoke());
 			if (!result.success) {
@@ -56,7 +66,7 @@ async function runResearch<T>(
 			}
 			return { data: result.data, error: null };
 		} catch (error) {
-			if (isTransientError(error) && attempt < MAX_RESEARCH_ATTEMPTS) {
+			if (isTransientError(error) && attempt < maxAttempts) {
 				await new Promise((resolve) =>
 					setTimeout(resolve, 500 * 2 ** (attempt - 1)),
 				);

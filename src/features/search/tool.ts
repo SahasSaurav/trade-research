@@ -19,8 +19,6 @@ import { TavilySearch } from "@langchain/tavily";
  */
 const SITE_OPERATOR = /(^|\s)site:(\S+)/gi;
 const FALLBACK_QUERY = "stock market analysis";
-const SEARCH_CACHE_TTL_MS = 5 * 60_000;
-const SEARCH_CACHE_MAX_ENTRIES = 100;
 
 type NormalizedQuery = { query: string; includeDomains: string[] };
 
@@ -67,14 +65,21 @@ type TavilySearchOutput = Awaited<ReturnType<TavilySearch["_call"]>>;
 
 /**
  * TavilySearch with the query rewrite applied before every request.
+ *
+ * The rewrite is an own property shadowing the prototype method rather than a
+ * subclass, so the original is bound first and called from inside the wrapper.
+ * _call is the only place the query exists, which makes it the only seam
+ * available for this.
  */
-class NormalizedTavilySearch extends TavilySearch {
-	private readonly cache = new Map<
-		string,
-		{ expiresAt: number; response: Promise<TavilySearchOutput> }
-	>();
+function createSearchTool(
+	params: TavilySearchAPIRetrieverFields,
+): TavilySearch {
+	const search = new TavilySearch(params);
+	const call = search._call.bind(search);
 
-	async _call(input: TavilySearchInput): Promise<TavilySearchOutput> {
+	search._call = async (
+		input: TavilySearchInput,
+	): Promise<TavilySearchOutput> => {
 		const { query, includeDomains, ...rest } = input;
 		const normalized = normalizeSearchQuery(query);
 		// The model's own includeDomains wins over the constructor's, so the
@@ -84,42 +89,14 @@ class NormalizedTavilySearch extends TavilySearch {
 			...new Set([...(includeDomains ?? []), ...normalized.includeDomains]),
 		];
 
-		const normalizedInput = {
+		return call({
 			...rest,
 			query: normalized.query,
 			includeDomains: domains.length > 0 ? domains : undefined,
-		};
-		const key = JSON.stringify(normalizedInput);
-		const cached = this.cache.get(key);
-		if (cached && cached.expiresAt > Date.now()) return cached.response;
-		if (cached) this.cache.delete(key);
-
-		const response = super._call(normalizedInput);
-		this.cache.set(key, {
-			expiresAt: Date.now() + SEARCH_CACHE_TTL_MS,
-			response,
 		});
-		while (this.cache.size > SEARCH_CACHE_MAX_ENTRIES) {
-			const oldest = this.cache.keys().next().value;
-			if (oldest === undefined) break;
-			this.cache.delete(oldest);
-		}
+	};
 
-		try {
-			const result = await response;
-			if ("error" in result) this.cache.delete(key);
-			return result;
-		} catch (error) {
-			this.cache.delete(key);
-			throw error;
-		}
-	}
-}
-
-function createSearchTool(
-	params: TavilySearchAPIRetrieverFields,
-): TavilySearch {
-	return new NormalizedTavilySearch(params);
+	return search;
 }
 
 export { createSearchTool, normalizeSearchQuery };

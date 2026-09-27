@@ -3,7 +3,7 @@ import {
 	createSearchTool,
 	normalizeSearchQuery,
 } from "@src/features/search/tool.js";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 /**
  * The Tavily API answers a query built purely from `site:` operators with a
@@ -72,13 +72,13 @@ describe("normalizeSearchQuery", () => {
 });
 
 /**
- * The cache is the only thing between a re-run and a full second bill.
+ * The rewrite is the only reason this subclass exists, so these tests assert
+ * what reaches Tavily rather than what the function returns.
  *
  * The fake is injected through TavilySearch's own `apiWrapper` seam, so the
- * real _call runs — cache, site-operator rewrite and error handling included.
- * Only the HTTP boundary is replaced.
+ * real _call runs. Only the HTTP boundary is replaced.
  */
-describe("search result cache", () => {
+describe("search request", () => {
 	type RawResultsArgs = Record<string, unknown>;
 
 	/**
@@ -111,77 +111,33 @@ describe("search result cache", () => {
 		}
 	}
 
-	it("serves a repeated query from cache without a second API call", async () => {
+	it("sends a recovered site: domain as a domain filter", async () => {
 		const apiWrapper = new FakeWrapper();
 		const search = createSearchTool({ tavilyApiKey: "k", apiWrapper });
 
-		await search.invoke({ query: "AMZN trailing EPS" });
-		await search.invoke({ query: "AMZN trailing EPS" });
+		await search.invoke({ query: "AMZN analyst rating site:tipranks.com" });
 
-		expect(apiWrapper.calls).toHaveLength(1);
-	});
-
-	it("treats a recovered site: domain as a different query", async () => {
-		const apiWrapper = new FakeWrapper();
-		const search = createSearchTool({ tavilyApiKey: "k", apiWrapper });
-
-		await search.invoke({ query: "AMZN analyst rating" });
-		await search.invoke({
-			query: "AMZN analyst rating site:tipranks.com",
-		});
-
-		// Same search terms, but the rewrite adds a domain filter, so this is
-		// a miss. A key built from the raw query rather than the normalised
-		// input would collapse these into one entry and serve unscoped results
-		// for a domain-scoped question.
-		expect(apiWrapper.calls).toHaveLength(2);
-		expect(apiWrapper.calls[1]).toMatchObject({
+		// The whole point of the rewrite: a site: operator that reaches Tavily
+		// verbatim is what earns the 400 and starts the retry loop.
+		expect(apiWrapper.calls[0]).toMatchObject({
+			query: "AMZN analyst rating",
 			includeDomains: ["tipranks.com"],
 		});
+		expect(String(apiWrapper.calls[0].query)).not.toContain("site:");
 	});
 
-	it("does not cache an error result", async () => {
-		// _call swallows failures into { error }, so an error can reach the
-		// cache like any other value. Caching one would pin a transient outage
-		// in place for the whole TTL.
-		let attempts = 0;
-		class FlakyWrapper extends FakeWrapper {
-			override async rawResults(params: never) {
-				attempts += 1;
-				if (attempts === 1) throw new Error("tavily is down");
-				return super.rawResults(params);
-			}
-		}
-		const search = createSearchTool({
-			tavilyApiKey: "k",
-			apiWrapper: new FlakyWrapper(),
+	it("keeps the path segments of a site-only query as search terms", async () => {
+		const apiWrapper = new FakeWrapper();
+		const search = createSearchTool({ tavilyApiKey: "k", apiWrapper });
+
+		// A bare site: is the case that used to kill the whole run, so it has
+		// to degrade to something specific rather than to an empty query.
+		await search.invoke({ query: "site:tipranks.com/stocks/aapl/forecast" });
+
+		expect(apiWrapper.calls[0]).toMatchObject({
+			query: "stocks aapl forecast",
+			includeDomains: ["tipranks.com"],
 		});
-
-		const first = await search.invoke({ query: "AMZN price" });
-		const second = await search.invoke({ query: "AMZN price" });
-
-		expect(first).toHaveProperty("error");
-		expect(second).toHaveProperty("results");
-		expect(attempts).toBe(2);
-	});
-
-	it("re-requests once the 5 minute TTL has elapsed", async () => {
-		vi.useFakeTimers();
-		try {
-			const apiWrapper = new FakeWrapper();
-			const search = createSearchTool({ tavilyApiKey: "k", apiWrapper });
-
-			await search.invoke({ query: "AMZN price" });
-			vi.advanceTimersByTime(5 * 60_000 - 1_000);
-			await search.invoke({ query: "AMZN price" });
-			expect(apiWrapper.calls).toHaveLength(1);
-
-			vi.advanceTimersByTime(2_000);
-			await search.invoke({ query: "AMZN price" });
-			expect(apiWrapper.calls).toHaveLength(2);
-		} finally {
-			vi.useRealTimers();
-		}
 	});
 
 	it("forwards the search sizing to Tavily", async () => {

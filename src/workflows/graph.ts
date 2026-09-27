@@ -1,4 +1,4 @@
-import { END, MemorySaver, START, StateGraph } from "@langchain/langgraph";
+import { END, MemorySaver, InMemoryStore, START, StateGraph } from "@langchain/langgraph";
 import type { TavilySearch } from "@langchain/tavily";
 import {
 	createAnalystNode,
@@ -88,6 +88,7 @@ function createGraph(agents: GraphAgents) {
 
 	return graphBuilder.compile({
 		checkpointer: new MemorySaver(),
+		store: new InMemoryStore()
 	});
 }
 

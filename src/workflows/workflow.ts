@@ -102,11 +102,6 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 	 * chunksPerSource is only honoured at searchDepth "advanced", so it is set
 	 * here and deliberately not on newsSearch, where Tavily ignores it.
 	 */
-	const cacheOptions = {
-		ttlMs: config.search.cacheTtlMs,
-		maxEntries: config.search.cacheMaxEntries,
-	};
-
 	const referenceSearch =
 		deps.referenceSearch ??
 		createSearchTool({
@@ -114,7 +109,6 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 			maxResults: config.search.reference.maxResults,
 			chunksPerSource: config.search.reference.chunksPerSource,
 			searchDepth: config.search.reference.searchDepth,
-			...cacheOptions,
 		});
 
 	const newsSearch =
@@ -123,7 +117,6 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 			tavilyApiKey: config.tavily.apiKey,
 			maxResults: config.search.news.maxResults,
 			timeRange: config.search.news.timeRange,
-			...cacheOptions,
 		});
 
 	const valuationAgent =

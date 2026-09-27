@@ -19,20 +19,8 @@ import { TavilySearch } from "@langchain/tavily";
  */
 const SITE_OPERATOR = /(^|\s)site:(\S+)/gi;
 const FALLBACK_QUERY = "stock market analysis";
-const DEFAULT_SEARCH_CACHE_TTL_MS = 5 * 60_000;
-const DEFAULT_SEARCH_CACHE_MAX_ENTRIES = 100;
-
-/**
- * Properties of this wrapper, not of the Tavily API, so they are stripped
- * before reaching super() rather than sent as unknown request keys.
- */
-type SearchCacheOptions = {
-	ttlMs?: number;
-	maxEntries?: number;
-};
-
-type NormalizedTavilySearchParams = TavilySearchAPIRetrieverFields &
-	SearchCacheOptions;
+const SEARCH_CACHE_TTL_MS = 5 * 60_000;
+const SEARCH_CACHE_MAX_ENTRIES = 100;
 
 type NormalizedQuery = { query: string; includeDomains: string[] };
 
@@ -85,15 +73,6 @@ class NormalizedTavilySearch extends TavilySearch {
 		string,
 		{ expiresAt: number; response: Promise<TavilySearchOutput> }
 	>();
-	private readonly cacheTtlMs: number;
-	private readonly cacheMaxEntries: number;
-
-	constructor(params: NormalizedTavilySearchParams) {
-		const { ttlMs, maxEntries, ...tavilyParams } = params;
-		super(tavilyParams);
-		this.cacheTtlMs = ttlMs ?? DEFAULT_SEARCH_CACHE_TTL_MS;
-		this.cacheMaxEntries = maxEntries ?? DEFAULT_SEARCH_CACHE_MAX_ENTRIES;
-	}
 
 	async _call(input: TavilySearchInput): Promise<TavilySearchOutput> {
 		const { query, includeDomains, ...rest } = input;
@@ -117,10 +96,10 @@ class NormalizedTavilySearch extends TavilySearch {
 
 		const response = super._call(normalizedInput);
 		this.cache.set(key, {
-			expiresAt: Date.now() + this.cacheTtlMs,
+			expiresAt: Date.now() + SEARCH_CACHE_TTL_MS,
 			response,
 		});
-		while (this.cache.size > this.cacheMaxEntries) {
+		while (this.cache.size > SEARCH_CACHE_MAX_ENTRIES) {
 			const oldest = this.cache.keys().next().value;
 			if (oldest === undefined) break;
 			this.cache.delete(oldest);
@@ -137,7 +116,9 @@ class NormalizedTavilySearch extends TavilySearch {
 	}
 }
 
-function createSearchTool(params: NormalizedTavilySearchParams): TavilySearch {
+function createSearchTool(
+	params: TavilySearchAPIRetrieverFields,
+): TavilySearch {
 	return new NormalizedTavilySearch(params);
 }
 

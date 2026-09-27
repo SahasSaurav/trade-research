@@ -165,18 +165,14 @@ describe("search result cache", () => {
 		expect(attempts).toBe(2);
 	});
 
-	it("re-requests once the TTL has elapsed", async () => {
+	it("re-requests once the 5 minute TTL has elapsed", async () => {
 		vi.useFakeTimers();
 		try {
 			const apiWrapper = new FakeWrapper();
-			const search = createSearchTool({
-				tavilyApiKey: "k",
-				apiWrapper,
-				ttlMs: 60_000,
-			});
+			const search = createSearchTool({ tavilyApiKey: "k", apiWrapper });
 
 			await search.invoke({ query: "AMZN price" });
-			vi.advanceTimersByTime(59_000);
+			vi.advanceTimersByTime(5 * 60_000 - 1_000);
 			await search.invoke({ query: "AMZN price" });
 			expect(apiWrapper.calls).toHaveLength(1);
 
@@ -188,57 +184,7 @@ describe("search result cache", () => {
 		}
 	});
 
-	it("treats a zero TTL as caching disabled", async () => {
-		const apiWrapper = new FakeWrapper();
-		const search = createSearchTool({
-			tavilyApiKey: "k",
-			apiWrapper,
-			ttlMs: 0,
-		});
-
-		await search.invoke({ query: "AMZN price" });
-		await search.invoke({ query: "AMZN price" });
-
-		expect(apiWrapper.calls).toHaveLength(2);
-	});
-
-	it("evicts the oldest entry once maxEntries is exceeded", async () => {
-		const apiWrapper = new FakeWrapper();
-		const search = createSearchTool({
-			tavilyApiKey: "k",
-			apiWrapper,
-			maxEntries: 2,
-		});
-
-		await search.invoke({ query: "first" });
-		await search.invoke({ query: "second" });
-		await search.invoke({ query: "third" });
-		// "first" was evicted, so asking again costs a round trip.
-		await search.invoke({ query: "first" });
-
-		expect(apiWrapper.calls).toHaveLength(4);
-	});
-
-	it("keeps the cache options out of the Tavily request body", async () => {
-		// ttlMs and maxEntries describe this wrapper, not the API. Forwarding
-		// them puts unknown keys in the request.
-		const apiWrapper = new FakeWrapper();
-		const search = createSearchTool({
-			tavilyApiKey: "k",
-			apiWrapper,
-			ttlMs: 1_000,
-			maxEntries: 7,
-		});
-
-		await search.invoke({ query: "AMZN price" });
-
-		expect(apiWrapper.calls[0]).not.toHaveProperty("ttlMs");
-		expect(apiWrapper.calls[0]).not.toHaveProperty("maxEntries");
-	});
-
-	it("still forwards the real search sizing to Tavily", async () => {
-		// The counterpart to the test above: stripping the cache keys must not
-		// strip the parameters the API actually needs.
+	it("forwards the search sizing to Tavily", async () => {
 		const apiWrapper = new FakeWrapper();
 		const search = createSearchTool({
 			tavilyApiKey: "k",

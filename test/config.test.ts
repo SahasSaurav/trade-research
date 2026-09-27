@@ -140,8 +140,6 @@ describe("loadConfig search sizing", () => {
 			searchDepth: "advanced",
 		});
 		expect(config.search.news).toEqual({ maxResults: 5, timeRange: "day" });
-		expect(config.search.cacheTtlMs).toBe(300_000);
-		expect(config.search.cacheMaxEntries).toBe(100);
 	});
 
 	it("reads every search knob from the environment", () => {
@@ -152,8 +150,6 @@ describe("loadConfig search sizing", () => {
 				SEARCH_REFERENCE_DEPTH: "basic",
 				SEARCH_NEWS_MAX_RESULTS: "8",
 				SEARCH_NEWS_TIME_RANGE: "week",
-				SEARCH_CACHE_TTL_MS: "60000",
-				SEARCH_CACHE_MAX_ENTRIES: "25",
 			}),
 		);
 
@@ -163,8 +159,6 @@ describe("loadConfig search sizing", () => {
 			searchDepth: "basic",
 		});
 		expect(config.search.news).toEqual({ maxResults: 8, timeRange: "week" });
-		expect(config.search.cacheTtlMs).toBe(60_000);
-		expect(config.search.cacheMaxEntries).toBe(25);
 	});
 
 	it.each([
@@ -185,24 +179,9 @@ describe("loadConfig search sizing", () => {
 			"search.reference.chunksPerSource",
 		],
 		["SEARCH_NEWS_MAX_RESULTS", "0", "search.news.maxResults"],
-		// A zero-size cache silently disables caching, which reads as a free
-		// choice rather than a mistake.
-		["SEARCH_CACHE_MAX_ENTRIES", "0", "search.cacheMaxEntries"],
 	])("rejects %s=%s", (key, value, path) => {
 		expect(() => loadConfig(env({ [key]: value }))).toThrow(ConfigError);
 		expect(() => loadConfig(env({ [key]: value }))).toThrow(path);
-	});
-
-	it("rejects a negative cache TTL", () => {
-		expect(() => loadConfig(env({ SEARCH_CACHE_TTL_MS: "-1" }))).toThrow(
-			ConfigError,
-		);
-	});
-
-	it("accepts a zero cache TTL, which is the documented way to disable it", () => {
-		expect(
-			loadConfig(env({ SEARCH_CACHE_TTL_MS: "0" })).search.cacheTtlMs,
-		).toBe(0);
 	});
 
 	it("rejects a fractional result count", () => {

@@ -51,16 +51,6 @@ const AppConfigSchema = z.object({
 			maxResults: z.coerce.number().int().min(1).default(5),
 			timeRange: z.enum(["day", "week", "month", "year"]).default("day"),
 		}),
-		/**
-		 * 5 minutes suits news headlines; a longer TTL suits reference data,
-		 * which barely moves within an hour. 0 disables the cache.
-		 */
-		cacheTtlMs: z.coerce
-			.number()
-			.int()
-			.min(0)
-			.default(5 * 60_000),
-		cacheMaxEntries: z.coerce.number().int().min(1).default(100),
 	}),
 	/**
 	 * Each budget re-runs a whole agent, so it multiplies cost rather than
@@ -120,8 +110,6 @@ function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
 				maxResults: env.SEARCH_NEWS_MAX_RESULTS,
 				timeRange: env.SEARCH_NEWS_TIME_RANGE,
 			},
-			cacheTtlMs: env.SEARCH_CACHE_TTL_MS,
-			cacheMaxEntries: env.SEARCH_CACHE_MAX_ENTRIES,
 		},
 		budgets: {
 			analystAttempts: env.BUDGET_ANALYST_ATTEMPTS,

@@ -238,7 +238,7 @@ describe("sentiment merge", () => {
 			},
 		);
 
-		expect([...(sentiment.sourceUrls as string[])].sort()).toEqual([
+		expect([...(sentiment.sourceUrls as string[])].toSorted()).toEqual([
 			"https://example.com/geo",
 			"https://example.com/news",
 			"https://example.com/shared",

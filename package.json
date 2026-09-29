@@ -11,21 +11,15 @@
 		"dev:valuation": "tsx src/index.ts --valuation",
 		"dev:analyst": "tsx src/index.ts --analyst",
 		"build": "tsc",
-		"lint": "biome check",
-		"format": "biome format --write",
-		"format:check": "biome format",
+		"lint": "oxlint",
+		"lint:fix": "oxlint --fix",
+		"format": "oxfmt",
+		"format:check": "oxfmt --check",
+		"check": "npm run lint && npm run format:check && npm run typecheck",
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage"
-	},
-	"devDependencies": {
-		"@biomejs/biome": "^2.5.14",
-		"@types/node": "^26.6.2",
-		"@vitest/coverage-v8": "^5.0.2",
-		"tsx": "^4.23.15",
-		"typescript": "^7.0.2",
-		"vitest": "^5.0.2"
 	},
 	"dependencies": {
 		"@langchain/google": "^0.2.7",
@@ -36,5 +30,14 @@
 		"dotenv": "^18.0.3",
 		"langchain": "^1.5.12",
 		"zod": "^4.6.5"
+	},
+	"devDependencies": {
+		"@types/node": "^26.6.2",
+		"@vitest/coverage-v8": "^5.0.2",
+		"oxfmt": "^0.71.0",
+		"oxlint": "^1.86.0",
+		"tsx": "^4.23.15",
+		"typescript": "^7.0.2",
+		"vitest": "^5.0.2"
 	}
 }

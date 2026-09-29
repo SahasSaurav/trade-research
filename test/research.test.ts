@@ -19,7 +19,9 @@ describe("runResearch", () => {
 	it("rejects data that does not match the schema without retrying", async () => {
 		// A schema violation is deterministic; retrying it three times would
 		// just burn quota on a guaranteed same answer.
-		const invoke = vi.fn(async () => ({ value: "not a number" }));
+		const invoke = vi.fn<() => Promise<{ value: string }>>(async () => ({
+			value: "not a number",
+		}));
 
 		const outcome = await runResearch(invoke, schema);
 
@@ -69,7 +71,7 @@ describe("runResearch", () => {
 	});
 
 	it("gives up after three attempts and reports the last error", async () => {
-		const invoke = vi.fn(async () => {
+		const invoke = vi.fn<() => Promise<never>>(async () => {
 			throw providerError("still failing", { status: 503 });
 		});
 
@@ -95,7 +97,7 @@ describe("runResearch", () => {
 	it("backs off between attempts", async () => {
 		vi.useFakeTimers();
 		try {
-			const invoke = vi.fn(async () => {
+			const invoke = vi.fn<() => Promise<never>>(async () => {
 				throw providerError("transient", { status: 500 });
 			});
 
@@ -113,7 +115,7 @@ describe("runResearch", () => {
 	it("does not sleep after the final attempt", async () => {
 		vi.useFakeTimers();
 		try {
-			const invoke = vi.fn(async () => {
+			const invoke = vi.fn<() => Promise<never>>(async () => {
 				throw providerError("transient", { status: 500 });
 			});
 
@@ -158,7 +160,7 @@ describe("runResearch", () => {
 		it("defaults to three attempts when no budget is passed", async () => {
 			// The default must equal the old hardcoded constant, or making the
 			// budget configurable would quietly change every existing caller.
-			const invoke = vi.fn(async () => {
+			const invoke = vi.fn<() => Promise<never>>(async () => {
 				throw providerError("still failing", { status: 503 });
 			});
 
@@ -170,7 +172,7 @@ describe("runResearch", () => {
 		it("honours a smaller attempt budget", async () => {
 			// One attempt means no retry at all: a caller that already spent an
 			// agent invocation in a sibling branch may not want three more.
-			const invoke = vi.fn(async () => {
+			const invoke = vi.fn<() => Promise<never>>(async () => {
 				throw providerError("transient", { status: 500 });
 			});
 
@@ -181,7 +183,7 @@ describe("runResearch", () => {
 		});
 
 		it("retries up to the given budget and then stops", async () => {
-			const invoke = vi.fn(async () => {
+			const invoke = vi.fn<() => Promise<never>>(async () => {
 				throw providerError("transient", { status: 500 });
 			});
 

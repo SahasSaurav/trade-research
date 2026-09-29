@@ -1,6 +1,6 @@
 import "dotenv/config";
-
 import { randomUUID } from "node:crypto";
+
 import type { DecisionData } from "@src/features/decision/schema.js";
 import { generateReport } from "@src/report/render.js";
 import { createWorkflow } from "@src/workflows/workflow.js";

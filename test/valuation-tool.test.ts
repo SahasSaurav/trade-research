@@ -94,9 +94,13 @@ describe("computeValuationMultiples", () => {
 		// z.number() rejects both. This is worth pinning because the handler
 		// also checks Number.isFinite, which is then unreachable for these —
 		// two independent guards, and the outer one fires first.
-		await expect(run({ price: Number.NaN })).rejects.toThrow();
-		await expect(run({ price: Number.POSITIVE_INFINITY })).rejects.toThrow();
-		await expect(run({ growthRatePercent: Number.NaN })).rejects.toThrow();
+		await expect(run({ price: Number.NaN })).rejects.toThrow(/price/);
+		await expect(run({ price: Number.POSITIVE_INFINITY })).rejects.toThrow(
+			/price/,
+		);
+		await expect(run({ growthRatePercent: Number.NaN })).rejects.toThrow(
+			/growthRatePercent/,
+		);
 	});
 
 	it("returns null for a multiple whose divisor is zero", async () => {

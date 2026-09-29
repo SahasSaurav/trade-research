@@ -8,7 +8,7 @@ import { describe, expect, it, vi } from "vitest";
 
 function fakeSearch(response: unknown) {
 	return {
-		invoke: vi.fn().mockResolvedValue(response),
+		invoke: vi.fn<() => Promise<unknown>>().mockResolvedValue(response),
 	} as unknown as TavilySearch;
 }
 

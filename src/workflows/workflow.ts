@@ -3,7 +3,6 @@ import { ChatGoogle } from "@langchain/google";
 import { ChatOllama } from "@langchain/ollama";
 import { ChatOpenAI } from "@langchain/openai";
 import type { TavilySearch } from "@langchain/tavily";
-
 import { loadConfig } from "@src/config/config.js";
 import { createAnalystAgent } from "@src/features/analyst/agent.js";
 import { createDecisionAgent } from "@src/features/decision/agent.js";

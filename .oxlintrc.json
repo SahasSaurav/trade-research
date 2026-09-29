@@ -1,0 +1,20 @@
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"plugins": ["typescript", "unicorn", "oxc", "vitest"],
+	"env": {
+		"node": true,
+		"es2024": true
+	},
+	"categories": {
+		"correctness": "error",
+		"suspicious": "error",
+		"perf": "warn"
+	},
+	"rules": {
+		"no-await-in-loop": "off",
+		"no-underscore-dangle": "off",
+		"vitest/valid-expect": "off",
+		"vitest/no-conditional-expect": "off"
+	},
+	"ignorePatterns": ["dist/**", "coverage/**", "node_modules/**"]
+}

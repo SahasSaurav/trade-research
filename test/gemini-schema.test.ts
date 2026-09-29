@@ -1,5 +1,6 @@
 import { createRequire } from "node:module";
 import path from "node:path";
+
 import { analystReportSchema } from "@src/features/analyst/schema.js";
 import { decisionSchema } from "@src/features/decision/schema.js";
 import { sentimentSchema } from "@src/features/sentiment/schema.js";
@@ -27,7 +28,7 @@ import { z } from "zod";
  * fail before a node ran.
  *
  * So the invariant worth locking down is the *output* of the converter, which
- * is what these tests assert. It is invisible to `tsc`, to `biome`, and to any
+ * is what these tests assert. It is invisible to `tsc`, to `oxlint`, and to any
  * test written against the obvious schema: `decisionSchema` is the concrete
  * example, because Zod 4 emits `anyOf` for `.nullable()` there, and `anyOf` is
  * a legal proto field, so it passes under the broken and the fixed converter

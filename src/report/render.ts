@@ -28,7 +28,7 @@ const ANSI = {
 
 /**
  * Built from a string rather than a regex literal: the escape byte is
- * unavoidable when stripping colour codes, and biome rejects control
+ * unavoidable when stripping colour codes, and the linter rejects control
  * characters inside a regex literal outright.
  */
 const ANSI_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");

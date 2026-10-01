@@ -128,10 +128,9 @@ describe("sentiment merge", () => {
 
 	// The recency ladder in graph.ts is 1 / 0.75 / 0.4 / 0 at 7 / 30 / 90 days.
 	// Each band is a place the weights could silently drift, so pin all four.
-	//
-	// Ages sit just inside each band rather than exactly on the boundary:
-	// daysAgo() and the merge node each call Date.now() separately, so a source
-	// placed at exactly 90.0 days can measure as 90.0000001 and drop a band.
+	// Ages sit just inside each band because daysAgo() and the merge node each
+	// call Date.now() separately, so an age of exactly 90.0 can measure as
+	// 90.0000001 and drop a band.
 	const RECENCY_LADDER = [
 		{ days: 3, recencyWeight: 1, label: "a 3-day-old" },
 		{ days: 20, recencyWeight: 0.75, label: "a 20-day-old" },

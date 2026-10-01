@@ -18,9 +18,12 @@ export default defineConfig({
 			provider: "v8",
 			reporter: ["text", "html"],
 			include: ["src/**/*.ts"],
-			// Floors sit just under the measured values so a regression fails
-			// the run rather than being noticed later. Current: 99.42 stmts,
-			// 98.41 branches, 100 funcs, 100 lines.
+			// Floors are meant to sit just under the measured values so a
+			// regression fails the run rather than being noticed later. They do
+			// not currently: a clean run measures ~95.9 stmts / 83.0 branches /
+			// 96.7 funcs / 97.0 lines, so the run fails on all four. The gap is
+			// src/features/ticker/node.ts (untested), plus partial coverage of
+			// validation/validate.ts, report/render.ts and workflows/graph.ts.
 			thresholds: {
 				statements: 99,
 				branches: 98,
@@ -35,14 +38,9 @@ export default defineConfig({
 			// templates (string constants).
 			//
 			// Two branches remain uncovered, both unreachable defensive guards
-			// rather than untested logic:
-			//   workflows/graph.ts:64         state.validation is never absent,
-			//                                 since the only edge into
-			//                                 dataValidation is via nodes that
-			//                                 always set it.
-			//   sentiment/workflow/graph.ts:79 a missing geopoliticalSummary
-			//                                 with no geopoliticalError, which
-			//                                 the node cannot produce together.
+			// rather than untested logic: the dataValidation router's
+			// "validation is absent" case, and the merge node's missing
+			// geopoliticalSummary with no geopoliticalError.
 			exclude: [
 				"src/index.ts",
 				"src/workflows/workflow.ts",

@@ -7,26 +7,22 @@ const isUsableDivisor = (value: number | null): value is number =>
 	value !== null && Number.isFinite(value) && value !== 0;
 
 /**
- * Deterministic valuation multiples.
- *
- * The valuation agent otherwise derives P/E and PEG in-head, where decimal
- * division drifts and the emitted multiple can disagree with the EPS values the
- * same response reports. Computing here makes the multiples reproducible and
- * turns an uncomputable multiple into a null (which the schema permits) rather
- * than a confident wrong number.
+ * Deterministic valuation multiples. Left to the agent, decimal division
+ * drifts in-head and the emitted multiple can disagree with the EPS values in
+ * the same response. Computing here also turns an uncomputable multiple into a
+ * null the schema permits, rather than a confident wrong number.
  *
  * PEG follows the standard convention: trailing P/E divided by the growth rate
  * expressed in percent, so P/E 18 with 12% growth yields 1.5.
  *
- * INPUTS ARE REQUIRED NUMBERS, NOT NULLABLE FIELDS. Gemini's Schema proto types
- * `type` as a single enum, so it rejects the JSON Schema union that zod emits
+ * INPUTS ARE REQUIRED NUMBERS, NOT NULLABLE FIELDS. Gemini's Schema proto
+ * types `type` as a single enum, so it rejects the JSON Schema union zod emits
  * for `.nullable()` — `"type": ["number", "null"]` fails the request with
- * "Proto field is not repeating, cannot start list". `.optional()` would emit a
- * safe single type, but @langchain/core throws ToolInputParsingException on a
- * null argument *before* any error handling, so a weaker model sending an
- * explicit null would break the run. Passing 0 for "could not verify" sidesteps
- * both: every field already treats 0 as not computable, and a genuine 0 EPS or
- * 0 price yields an undefined multiple anyway, so no answer is distorted.
+ * "Proto field is not repeating, cannot start list". `.optional()` emits a safe
+ * single type, but @langchain/core throws ToolInputParsingException on a null
+ * argument before any error handling, so a weaker model sending an explicit
+ * null would break the run. Passing 0 for "could not verify" sidesteps both:
+ * every field already treats 0 as not computable.
  */
 const computeValuationMultiples = tool(
 	({ price, trailingEps, forwardEps, growthRatePercent }) => {

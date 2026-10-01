@@ -43,8 +43,7 @@ function isProviderError(error: unknown): boolean {
 
 /**
  * Retries fire only on transient provider errors, never on a bad artifact.
- * Each attempt re-invokes the whole agent, so this multiplies cost rather
- * than adding to it.
+ * Each attempt re-invokes the whole agent, so this multiplies cost.
  */
 async function runResearch<T>(
 	invoke: () => Promise<unknown>,

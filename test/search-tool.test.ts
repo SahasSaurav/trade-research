@@ -9,9 +9,8 @@ import { describe, expect, it } from "vitest";
  * The Tavily API answers a query built purely from `site:` operators with a
  * 400. TavilySearch turns that 400 into an `{ error }` tool result rather than
  * throwing, so the model reads the failure as data and re-issues another
- * site-only query. Each retry costs two supersteps in the agent's own Pregel
- * loop, so the run used to end in GraphRecursionError rather than a report.
- * These tests pin the rewrite that stops the loop from starting.
+ * site-only query until the model-call budget runs out. These tests pin the
+ * rewrite that stops the loop from starting.
  */
 
 describe("normalizeSearchQuery", () => {
@@ -72,11 +71,9 @@ describe("normalizeSearchQuery", () => {
 });
 
 /**
- * The rewrite is the only reason this subclass exists, so these tests assert
- * what reaches Tavily rather than what the function returns.
- *
+ * These tests assert what reaches Tavily rather than what the function returns.
  * The fake is injected through TavilySearch's own `apiWrapper` seam, so the
- * real _call runs. Only the HTTP boundary is replaced.
+ * real _call runs and only the HTTP boundary is replaced.
  */
 describe("search request", () => {
 	type RawResultsArgs = Record<string, unknown>;

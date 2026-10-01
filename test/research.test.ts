@@ -158,8 +158,8 @@ describe("runResearch", () => {
 
 	describe("attempt budget", () => {
 		it("defaults to three attempts when no budget is passed", async () => {
-			// The default must equal the old hardcoded constant, or making the
-			// budget configurable would quietly change every existing caller.
+			// The default must stay at three, or making the budget configurable
+			// would quietly change every existing caller.
 			const invoke = vi.fn<() => Promise<never>>(async () => {
 				throw providerError("still failing", { status: 503 });
 			});

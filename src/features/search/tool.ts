@@ -7,15 +7,13 @@ import { TavilySearch } from "@langchain/tavily";
  *
  * `TavilySearch._call` swallows that failure and hands the model an
  * `{ error }` object as a normal tool result, so the model treats it as data,
- * re-issues another site-only query, gets another error, and the
- * model/tools cycle repeats. Each cycle costs two supersteps, so the agent's
- * own Pregel loop eventually trips LangGraph's default recursion limit of 25
- * and the whole workflow dies with GraphRecursionError instead of degrading to
- * insufficient_data.
+ * re-issues another site-only query, and gets another error. The loop runs
+ * until the model-call budget in agent-guard.ts runs out, losing the whole
+ * invocation to a query the API would never accept.
  *
  * Rewriting the operator into Tavily's own include_domains parameter keeps the
- * model's intent (that domain, those terms) and gives the API something it
- * accepts, so the loop never starts.
+ * model's intent and gives the API something it accepts, so the loop never
+ * starts.
  */
 const SITE_OPERATOR = /(^|\s)site:(\S+)/gi;
 const FALLBACK_QUERY = "stock market analysis";
@@ -66,10 +64,9 @@ type TavilySearchOutput = Awaited<ReturnType<TavilySearch["_call"]>>;
 /**
  * TavilySearch with the query rewrite applied before every request.
  *
- * The rewrite is an own property shadowing the prototype method rather than a
- * subclass, so the original is bound first and called from inside the wrapper.
- * _call is the only place the query exists, which makes it the only seam
- * available for this.
+ * The rewrite is an own property shadowing the prototype method, so the
+ * original is bound first and called from inside the wrapper. _call is the
+ * only place the query exists, which makes it the only seam for this.
  */
 function createSearchTool(
 	params: TavilySearchAPIRetrieverFields,

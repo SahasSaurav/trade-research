@@ -179,8 +179,7 @@ describe("computeValuationMultiples", () => {
 
 	it("handles a negative EPS without producing a misleading positive P/E", async () => {
 		// A loss-making company has negative EPS. price / negative is negative,
-		// which is arithmetically right but is not a usable P/E. The current
-		// implementation returns it; this test pins the behaviour so a
+		// which is arithmetically right but is not a usable P/E. Pinned so a
 		// deliberate change is visible in the diff.
 		const result = await run({
 			price: 20,

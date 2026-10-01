@@ -182,15 +182,11 @@ describe("pass-through nodes", () => {
 	});
 
 	it("passes sentiment and the decision into the summary prompt", async () => {
-		// The system prompt asks for a "Convergence & conflict" paragraph
-		// spanning valuation, sentiment *and* analyst views, and consolidates
-		// sourceUrls "from the valuation, analyst, and sentiment inputs" —
-		// neither is answerable while sentiment is dropped on the floor.
-		//
-		// The decision is the other half. The decision agent runs before the
-		// summary agent, so the buy/hold/avoid call already exists; passing it
-		// is what lets the summary lead with it instead of ending the run with
-		// prose that never mentions what to do.
+		// The system prompt asks for a Sentiment & geopolitical section and
+		// consolidates sourceUrls across the valuation, analyst and sentiment
+		// inputs — neither is answerable while sentiment is dropped. The
+		// decision agent runs first, so the call already exists; passing it is
+		// what lets the summary lead with it.
 		let seen = "";
 		const agent = {
 			invoke: async (input: unknown) => {

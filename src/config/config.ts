@@ -24,23 +24,17 @@ const AppConfigSchema = z.object({
 	ollama: z.object({
 		baseUrl: z.string().default("http://localhost:11434"),
 		/**
-		 * Unset by default so the model's own context window keeps winning.
-		 * A window larger than this pipeline needs still costs KV cache, which
-		 * on Apple silicon decides whether a 12B model stays resident in
-		 * unified memory.
+		 * Unset by default so the model's own context window keeps winning — a
+		 * larger window still costs KV cache, which on Apple silicon decides
+		 * whether a 12B model stays resident in unified memory.
 		 */
 		numCtx: z.coerce.number().int().min(1).optional(),
 	}),
 	tavily: z.object({
 		apiKey: z.string().min(1),
 	}),
-	/**
-	 * Search result sizing. On a local provider Tavily credits are the whole
-	 * cost model, so these are the knobs that matter. Defaults reproduce the
-	 * values that were hardcoded in workflow.ts.
-	 *
-	 * chunksPerSource is only honoured at searchDepth "advanced".
-	 */
+	/** Search result sizing. On a local provider Tavily credits are the whole
+	 * cost model. chunksPerSource is only honoured at searchDepth "advanced". */
 	search: z.object({
 		reference: z.object({
 			maxResults: z.coerce.number().int().min(1).default(5),
@@ -54,9 +48,8 @@ const AppConfigSchema = z.object({
 	}),
 	/**
 	 * Each budget re-runs a whole agent, so it multiplies cost rather than
-	 * adding to it. analystAttempts 2 permits three full analyst runs; 0 sends
-	 * the first result straight to validation. researchAttempts floors at 1 —
-	 * zero retries is a choice, zero attempts is not a run at all.
+	 * adding to it. researchAttempts floors at 1 — zero retries is a choice,
+	 * zero attempts is not a run at all.
 	 */
 	budgets: z.object({
 		analystAttempts: z.coerce.number().int().min(0).max(5).default(2),

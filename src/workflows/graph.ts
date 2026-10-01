@@ -31,7 +31,7 @@ type GraphAgents = {
 /**
  * Each round is a complete re-invocation of the analyst, so this multiplies
  * one of the most expensive branches rather than adding to it. 0 disables
- * repair and sends the first result straight to validation.
+ * repair.
  */
 const DEFAULT_MAX_ANALYST_ATTEMPTS = 2;
 

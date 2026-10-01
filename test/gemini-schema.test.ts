@@ -14,26 +14,16 @@ import { z } from "zod";
 /**
  * Regression guard for langchainjs#11328.
  *
- * Gemini's `Schema` proto types `type` as a single enum, so it rejects the
- * JSON Schema union that a union-valued `type` produces:
- *
- *   Invalid JSON payload received. Unknown name "type" at
- *   'tools[0].function_declarations[1].parameters...':
- *   Proto field is not repeating, cannot start list.
- *
+ * Gemini's `Schema` proto types `type` as a single enum, so it rejects a
+ * union-valued `type`: "Proto field is not repeating, cannot start list."
  * `@langchain/google` rewrites these in `schemaToGeminiParameters`, for both
- * Zod and pre-converted JSON Schema input. Its predecessor
- * `@langchain/google-genai` rewrote neither — measured, both input forms came
- * straight back out as `["number","null"]` — which is why every request used to
- * fail before a node ran.
+ * Zod and pre-converted JSON Schema input.
  *
- * So the invariant worth locking down is the *output* of the converter, which
- * is what these tests assert. It is invisible to `tsc`, to `oxlint`, and to any
- * test written against the obvious schema: `decisionSchema` is the concrete
- * example, because Zod 4 emits `anyOf` for `.nullable()` there, and `anyOf` is
- * a legal proto field, so it passes under the broken and the fixed converter
- * alike. `valuationSchema` is the one that discriminates — which is why all six
- * schemas are checked rather than just one.
+ * The invariant worth locking down is the *output* of the converter. It is
+ * invisible to tsc and to oxlint, and decisionSchema is the case that hides
+ * it: Zod 4 emits `anyOf` for `.nullable()` there, and `anyOf` is a legal proto
+ * field, so it passes under a broken converter alike. valuationSchema is the
+ * one that discriminates — which is why all six schemas are checked.
  */
 
 type JsonSchemaNode = {
@@ -62,7 +52,7 @@ function loadGeminiConverter(): {
 		try {
 			mod = require_(candidate) as { schemaToGeminiParameters?: unknown };
 		} catch {
-			continue; // try the next candidate
+			continue;
 		}
 		const fn = mod.schemaToGeminiParameters;
 		if (typeof fn === "function") {
@@ -119,11 +109,7 @@ describe("Gemini schema compatibility", () => {
 
 	// The tool input schema travels the same path as the response schemas: it
 	// is converted and sent inside the same `tools` payload, so the same proto
-	// restriction applies. This is the guard for the crash where
-	// compute_valuation_multiples declared `.nullable()` fields, which zod 4
-	// renders as "type": ["number","null"] and Gemini rejected with
-	// "Proto field is not repeating, cannot start list" — taking down every
-	// request before a node ran.
+	// restriction applies.
 	it("compute_valuation_multiples emits a convertible, Gemini-legal schema", () => {
 		const parameters = schemaToGeminiParameters(
 			// The tool object, not the response schema: the converter branches
@@ -192,10 +178,8 @@ describe("Gemini schema compatibility", () => {
 	});
 
 	it("keeps numeric bounds that hand-written schemas had dropped", () => {
-		// decisionSchema declares .min(-1).max(1) on sentimentScore. The
-		// hand-written JSON Schema it replaced said only
-		// { type: "number", nullable: true }, so an out-of-range score reached
-		// the model unconstrained. Verify the bound survives to the wire.
+		// decisionSchema declares .min(-1).max(1) on sentimentScore. Verify the
+		// bound survives to the wire.
 		const parameters = schemaToGeminiParameters(decisionSchema);
 		const properties = parameters.properties as Record<string, JsonSchemaNode>;
 		const anyOf = properties.sentimentScore?.anyOf as
@@ -208,24 +192,10 @@ describe("Gemini schema compatibility", () => {
 	});
 
 	it("sanitises pre-converted JSON Schema identically to a Zod schema", () => {
-		// Guards a claim that is easy to get backwards.
-		//
-		// It is tempting to read `schemaToGeminiParameters` as though the
-		// Zod/JSON-Schema ternary gated the *sanitisation*:
-		//
-		//   sanitizeGeminiSchema(
-		//     isZod(schema) ? toJsonSchema(schema) : schema
-		//   )
-		//
-		// which reads as "raw JSON Schema is forwarded verbatim". It is not.
-		// The ternary only chooses how to *obtain* the JSON Schema;
-		// `sanitizeGeminiSchema` then calls `adjustObjectType` on every node
-		// either way, and the JSDoc says it takes "a Zod schema or JSON
-		// Schema". So both forms are safe under this package.
-		//
-		// This matters because the bug being guarded against lived in
-		// @langchain/google-genai, which did *not* rewrite `type` for either
-		// form. The package migration is what fixed it — not passing Zod.
+		// Guards a claim that is easy to get backwards: the Zod/JSON-Schema
+		// ternary in schemaToGeminiParameters only chooses how to *obtain* the
+		// JSON Schema. Sanitisation then runs on both forms, so raw JSON Schema
+		// is not forwarded verbatim.
 		const preConverted = z.toJSONSchema(valuationSchema);
 
 		// The raw form does contain the fatal union...

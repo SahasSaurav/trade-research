@@ -14,9 +14,9 @@ import { z } from "zod";
 
 /**
  * A React agent is a Pregel graph of its own, so a model that keeps calling a
- * failing tool runs until LangGraph's recursion limit trips. That error is not
- * caught anywhere in this project, so it used to abort the whole workflow
- * instead of letting the validation node report insufficient_data.
+ * failing tool runs until LangGraph's recursion limit trips. Nothing in this
+ * project catches that, so it would abort the whole workflow instead of letting
+ * the validation node report insufficient_data.
  *
  * FakeToolCallingModel is used because the failure needs a model that never
  * stops asking for a tool — spending quota to reproduce it would be absurd.
@@ -67,8 +67,8 @@ describe("agent guard", () => {
 	it("ends a runaway tool loop instead of throwing GraphRecursionError", async () => {
 		const agent = guardedAgent(modelThatNeverStops());
 
-		// The regression: this used to reject with GRAPH_RECURSION_LIMIT and
-		// take the whole workflow down with it.
+		// The regression: without the guard this rejected with
+		// GRAPH_RECURSION_LIMIT and took the whole workflow down with it.
 		const result = (await agent.invoke({
 			messages: [{ role: "user", content: "go" }],
 		})) as AgentResult;
@@ -78,10 +78,10 @@ describe("agent guard", () => {
 
 	it("stops the loop at the model call budget, not at the recursion limit", async () => {
 		// The limit middleware adds before_model and after_model nodes, so each
-		// model call costs four supersteps instead of two. If the recursion
-		// limit were left at the default 25, the agent would hit it at about
-		// six calls and throw before the budget could stop it — the guard
-		// would look installed while changing nothing.
+		// model call costs four supersteps. If the recursion limit were left at
+		// the default 25, the agent would hit it at about six calls and throw
+		// before the budget could stop it — the guard would look installed while
+		// changing nothing.
 		const result = (await guardedAgent(modelThatNeverStops()).invoke({
 			messages: [{ role: "user", content: "go" }],
 		})) as AgentResult;

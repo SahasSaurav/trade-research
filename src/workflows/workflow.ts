@@ -22,10 +22,9 @@ type WorkflowDeps = {
 
 /**
  * One model instance is shared by all six agents, so anything dropped here is
- * dropped pipeline-wide. temperature used to reach only two of the four
- * providers, leaving MODEL_TEMPERATURE ignored on openai and xai — a cost bug,
- * since a hot temperature on a zod-constrained extraction buys malformed
- * output, and malformed output routes the analyst into a repair run.
+ * dropped pipeline-wide. Every branch must therefore pass temperature
+ * explicitly: a `temperature || default` shortcut reads as correct and
+ * silently ignores MODEL_TEMPERATURE on the providers it misses.
  */
 function createModel(config: ReturnType<typeof loadConfig>): BaseChatModel {
 	switch (config.model.provider) {
@@ -69,37 +68,16 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 	 * Two tools, because a publication-date filter is right for one pair of
 	 * agents and actively harmful for the other.
 	 *
-	 * The news subagents want the last day, and timeRange "day" gives them
-	 * that. The valuation and analyst agents want SEC filings, statistics pages
-	 * and broker research, none of which are *published* within 24 hours — a
-	 * one-day filter returned a Yahoo Finance page for TSLA, a Telecom Italia
-	 * quote and a YouTube video, so the model never found a price or an EPS
-	 * figure, burned its whole call budget searching, and the valuation
-	 * artifact came back empty. Their own prompts ask for a 90-day window, so
-	 * they get no filter at all.
+	 * The news subagents want the last day, so they get timeRange "day". The
+	 * valuation and analyst agents want SEC filings, statistics pages and
+	 * broker research, none of which are *published* within 24 hours, so they
+	 * get no filter at all.
 	 *
-	 * The result size is a token budget, not a relevance dial. A ReAct agent
-	 * appends every tool result to its message list and re-sends that list on
-	 * each remaining model call, so a search payload is not billed once — it is
-	 * billed once per remaining call in the loop, up to MAX_MODEL_CALLS. At
-	 * 8 results x 3 chunks that is roughly 4-6K tokens of duplicated payload
-	 * re-sent 5-15 times, which dwarfs the 589-word valuation prompt it sits
-	 * next to.
-	 *
-	 * 5 results keeps the same breadth of sources to choose from; the
-	 * chunksPerSource cut is the sharper one because it does not reduce how
-	 * many distinct sources the agent can find, only how much of each it reads.
-	 * The trade is that a low-scoring page may no longer contain the number
-	 * the prompt demands, so the model rephrases and searches again — more
-	 * model calls in exchange for far smaller ones. This is the one setting
-	 * here that trades calls for tokens rather than saving outright, so it
-	 * needs per-node token counts and call counts from a real run to confirm
-	 * the net effect; the values below are reasoned, not measured. If calls
-	 * climb more than tokens drop, raise chunksPerSource back toward 2 before
-	 * touching maxResults.
-	 *
-	 * chunksPerSource is only honoured at searchDepth "advanced", so it is set
-	 * here and deliberately not on newsSearch, where Tavily ignores it.
+	 * Reference results are deliberately smaller: a ReAct agent re-sends every
+	 * tool result on each remaining model call, so search payload is billed
+	 * once per remaining call rather than once. chunksPerSource is set here and
+	 * not on newsSearch because Tavily only honours it at searchDepth
+	 * "advanced".
 	 */
 	const referenceSearch =
 		deps.referenceSearch ??

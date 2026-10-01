@@ -219,14 +219,10 @@ describe("validateArtifacts", () => {
 
 		it("does not flag an unparseable dateChecked", () => {
 			// Documented gap, not an endorsement. `dateChecked` is typed
-			// `z.string()`, not a date, so "not a date" parses. Then
-			// new Date(...).getTime() is NaN and `NaN > threshold` is false,
-			// so the staleness check silently passes.
-			//
-			// A garbage date therefore reads as fresh. Tightening this means
-			// z.iso.date() (or .refine) on dateChecked across the schemas,
-			// which would also reject the model's free-form dates — hence a
-			// test pinning current behaviour rather than a fix.
+			// `z.string()`, so "not a date" parses; new Date(...).getTime() is
+			// then NaN and `NaN > threshold` is false, so a garbage date reads
+			// as fresh. Tightening this means z.iso.date() on dateChecked across
+			// the schemas, which would also reject the model's free-form dates.
 			const result = validateArtifacts(
 				goodValuation,
 				goodAnalyst,

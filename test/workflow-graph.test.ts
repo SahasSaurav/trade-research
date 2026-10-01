@@ -130,10 +130,6 @@ describe("workflow graph", () => {
 		expect(decisionAgent.stub.invokeCount).toBe(1);
 		// The summary is the program's only output (src/index.ts reads
 		// result.summary?.summary), so it must run on the success path.
-		// It previously did not: graph.ts routed decisionAgent to END
-		// unless workflowStatus was "insufficient_data", which
-		// createDecisionNode can never return, so every successful run
-		// printed "No summary available".
 		expect(summaryAgent.stub.invokeCount).toBe(1);
 	});
 
@@ -168,9 +164,6 @@ describe("workflow graph", () => {
 	});
 
 	it("halts to the summary when validation fails, skipping the decision", async () => {
-		// This is the only path that reaches summaryAgent today, which is
-		// what makes the previous test's bug easy to miss: the summary agent
-		// is well exercised, just never on success.
 		const { agents, decisionAgent, summaryAgent } = buildAgents({
 			analyst: { ticker: "AAPL", dateChecked: TODAY, reports: [] },
 		});

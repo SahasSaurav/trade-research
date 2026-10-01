@@ -126,9 +126,8 @@ describe("loadConfig", () => {
 });
 
 /**
- * The defaults are the values that were hardcoded at the call sites, so both
- * halves are pinned: setting nothing must reproduce the old behaviour, and
- * setting something must change it.
+ * Defaults and overrides both need pinning: setting nothing must reproduce the
+ * sizing the workflow uses, and setting something must change it.
  */
 describe("loadConfig search sizing", () => {
 	it("defaults to the reference sizing the workflow already used", () => {
@@ -219,8 +218,6 @@ describe("loadConfig budgets", () => {
 	});
 
 	it("allows zero repair attempts, which disables the repair branch", () => {
-		// The meaningful setting for an exploratory run: a partial report beats
-		// paying for three full analyst invocations.
 		expect(loadConfig(env({ BUDGET_ANALYST_ATTEMPTS: "0" }))).toMatchObject({
 			budgets: { analystAttempts: 0 },
 		});
@@ -276,8 +273,7 @@ describe("loadConfig ollama numCtx", () => {
 describe("getConfig", () => {
 	it("reads process.env, unlike loadConfig's explicit argument", () => {
 		// getConfig is the zero-arg form the app actually calls, so it has to
-		// resolve against the real environment. Without this it is the one
-		// exported config entry with no coverage.
+		// resolve against the real environment.
 		const saved = { ...process.env };
 		try {
 			process.env.MODEL_PROVIDER = "openai";

@@ -1,14 +1,12 @@
 /**
  * Terminal rendering for the research report.
  *
- * The summary is markdown written by a model, and the decision block is a
- * structured artifact, so both need turning into something a person can scan
- * in one pass: a badge for the call, aligned figures for the numbers, and
- * headings that actually look like headings instead of literal asterisks.
+ * The summary is model-written markdown and the decision is a structured
+ * artifact, so both are turned into something scannable: a badge for the call,
+ * aligned figures for the numbers, headings that look like headings.
  *
  * Colour is applied last, after wrapping, so escape codes never corrupt the
- * layout — and it is suppressed entirely when the output is not a terminal, so
- * piping to a file yields clean text.
+ * layout, and it is suppressed when the output is not a terminal.
  */
 
 const ANSI = {
@@ -27,8 +25,7 @@ const ANSI = {
 } as const;
 
 /**
- * Built from a string rather than a regex literal: the escape byte is
- * unavoidable when stripping colour codes, and the linter rejects control
+ * Built from a string rather than a regex literal: the linter rejects control
  * characters inside a regex literal outright.
  */
 const ANSI_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
@@ -158,11 +155,10 @@ const NUMBERED = /^(\d+)\.\s+(.*)$/;
 const KEY_VALUE = /^([A-Za-z][A-Za-z0-9 %/().-]{0,28}):\s+(.+)$/;
 
 /**
- * Turns the summary markdown into terminal output.
- *
- * Consecutive "Label: value" lines are aligned into columns, which is what
- * makes the Key data block readable — as separate wrapped paragraphs it reads
- * like a list of unrelated assertions.
+ * Turns the summary markdown into terminal output. Consecutive "Label: value"
+ * lines are aligned into columns, which is what makes the Key data block
+ * readable — as separate wrapped paragraphs it reads like a list of unrelated
+ * assertions.
  */
 function renderSummary(
 	markdown: string,

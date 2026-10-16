@@ -15,7 +15,7 @@ metadata:
 
 # Sell-side analyst research
 
-Gather and verify current analyst research reports on U.S. public companies, then structure them as verified JSON with full source attribution.
+Gather and verify current analyst research reports on U.S. public companies, read each one the way its author wrote it, then structure them as verified JSON with full source attribution.
 
 ## Core workflow
 
@@ -42,26 +42,46 @@ Gather and verify current analyst research reports on U.S. public companies, the
 - Bloomberg/Reuters citing a specific report date and firm → ✅ **Issuer confirmed** (article quotes the firm)
 - "Analysts may be considering" or speculation → ❌ **Reject** (not confirmed)
 
-### Step 3: Extract the five required fields per report
+### Step 3: Extract the required fields per report
 
-| Field           | Rule                                                              | Where to find                           |
-| --------------- | ----------------------------------------------------------------- | --------------------------------------- |
-| **firm**        | Exact institution name (e.g., "Morgan Stanley")                   | Report header or firm's website         |
-| **reportTitle** | Report title or article headline if original unavailable          | Report cover or article header          |
-| **rating**      | Rating from the report **body** (not headline) — must be explicit | Report body; map to Buy/Hold/Sell scale |
-| **priceTarget** | 12-month USD target (or null if unstated; never guess)            | Report body; if range, use midpoint     |
-| **reportDate**  | Date issued, `YYYY-MM-DD` format                                  | Report date or article publish date     |
-| **sourceUrl**   | The exact URL you opened (must resolve)                           | Browser address bar                     |
-| **summary**     | 1–2 sentences: why the rating, key catalyst or concern            | Synthesize from report body             |
+| Field           | Rule                                                                                                                                          | Where to find                           |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| **firm**        | Exact institution name (e.g., "Morgan Stanley")                                                                                               | Report header or firm's website         |
+| **reportTitle** | Report title or article headline if original unavailable                                                                                      | Report cover or article header          |
+| **rating**      | Rating from the report **body** (not headline) — must be explicit                                                                             | Report body; map to Buy/Hold/Sell scale |
+| **priceTarget** | 12-month USD target (or null if unstated; never guess)                                                                                        | Report body; if range, use midpoint     |
+| **reportDate**  | Date issued, `YYYY-MM-DD` format                                                                                                              | Report date or article publish date     |
+| **sourceUrl**   | The exact URL you opened (must resolve)                                                                                                       | Browser address bar                     |
+| **summary**     | 1–2 sentences: the action (initiation/upgrade/downgrade/reiterate, and any target change), the driver, and the risk if it is the note's point | Synthesize from report body             |
 
 **Critical rule:** If any of firm, rating, sourceUrl, or reportDate cannot be verified, **drop that report entirely.** Do not guess or estimate.
 
-### Step 4: Deduplicate by firm
+### Step 4: Read it the way the analyst wrote it
+
+A sell-side rating is relative and 12-month, and ratings and targets move on
+separate clocks. Work out what the note actually says before you write the summary:
+
+- **Action** — initiation, upgrade, downgrade or reiterate, and whether the target
+  moved. "Raises PT to $260, keeps Buy" is a target action worth recording.
+- **Relative or absolute** — many Buy/Overweight ratings mean "outperform the
+  sector", not "will rise"; a Hold on a good company is usually a valuation call.
+- **Driver** — the catalyst or estimate change behind the note.
+- **Strength** — revised estimates (direction), a cluster of same-direction moves,
+  target dispersion, or the first mover all carry more signal than the rating level.
+
+Never carry the analyst's model numbers (EPS forecasts, DCF assumptions) into
+anything you emit: the rating, the stated target and the reason are the data.
+
+`references/analyst-practice.md` covers the profession in depth — what analysts
+publish and when, how a target is derived and a rating assigned, what the rating
+distribution implies, where each part of a real note lives, and the vocabulary.
+
+### Step 5: Deduplicate by firm
 
 - **One report per firm only** — if a firm issued multiple reports in the last 90 days, keep only the most recent.
 - Drop older reports from the same firm.
 
-### Step 5: Re-verify each report before emitting
+### Step 6: Re-verify each report before emitting
 
 For each report you intend to include:
 
@@ -73,13 +93,18 @@ For each report you intend to include:
 
 **If any verification fails, drop the report.**
 
-### Step 6: Emit the structured result
+### Step 7: Emit the structured result
 
 Return valid JSON with no prose.
 
 ## Reference
 
-Deeper detail — the rating mapping, the firm tiers and the source priority — lives in [`references/reference.md`](references/reference.md). Read it when the workflow points you at a table that is not here.
+Deeper detail lives in two files beside this one:
+
+- [`references/reference.md`](references/reference.md) — the rating mapping, the firm tiers and the source priority.
+- [`references/analyst-practice.md`](references/analyst-practice.md) — how the sell-side works: what analysts publish and when, how a target is derived and a rating assigned, what the rating distribution implies, the anatomy of a note, and the vocabulary.
+
+Read them when the workflow points you at a table that is not here.
 
 ## Output contract
 
@@ -155,6 +180,9 @@ Deeper detail — the rating mapping, the firm tiers and the source priority —
 - ❌ Headline rating that disagrees with report body (use body)
 - ❌ Padding to three with weak sources (return only verified reports)
 - ❌ `priceTarget` set to `null` then estimated in the summary
+- ❌ A `summary` that gives the rating but not the action (the target may have just moved)
+- ❌ Reading a relative Overweight as an absolute "the stock will rise" call
+- ❌ Carrying the analyst's EPS estimates or DCF assumptions into the output
 
 ## Troubleshooting
 
@@ -180,3 +208,8 @@ Deeper detail — the rating mapping, the firm tiers and the source priority —
 
 - Keep only the most recent report
 - Note in the summary if an older version had a different rating
+
+**The note is a reiteration with an old target?**
+
+- Record it, and say in the summary that the rating is maintained — but if the same
+  firm has a fresher action, keep that instead (Step 5 keeps one report per firm).

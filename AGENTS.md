@@ -75,12 +75,12 @@ createDeepAgent({
   [ARCHITECTURE.md](ARCHITECTURE.md#sentiment-orchestrator)).
 - **Prompt holds the contract, skill holds the procedure.** Every research agent
   (valuation, analyst, the sentiment orchestrator and its two subagents) keeps its
-  role, scope, hard rules and guardrails in `src/features/<feature>/prompt.ts`, and
-  the how-to — search strategy, sources, verification, grading, field rules,
-  examples — in `skills/<name>/SKILL.md`, read from disk at runtime under a
-  read-only filesystem confined to that agent's own folder. Deep tables live in
-  `references/reference.md` beside it. Folder name must equal the skill's
-  frontmatter `name`.
+  role, scope, hard rules and guardrails in
+  `src/features/<feature>/prompt.ts`, and the how-to — search strategy, sources,
+  verification, grading, field rules, examples — in `skills/<name>/SKILL.md`, read
+  from disk at runtime under a read-only filesystem confined to that agent's own
+  folder. Deep tables live in the `references/` files beside it. Folder name must
+  equal the skill's frontmatter `name`.
 
 ## Deep agents — adopted for research agents
 

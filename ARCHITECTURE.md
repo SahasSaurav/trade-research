@@ -117,9 +117,11 @@ root plus a `FilesystemPermission` allow/deny pair), so it costs no prompt token
 until the agent reads it.
 
 Deep tables — source hierarchies, firm tiers, metric definitions, grading rubrics —
-live in `skills/<name>/references/reference.md`, linked from `SKILL.md` and read on
-demand. A skill `scripts/` directory is deliberately absent: the agents read through
-a `FilesystemBackend`, which is not execution-capable, so deepagents filters the
+live in `skills/<name>/references/*.md`, linked from `SKILL.md` and read on
+demand.
+
+A skill `scripts/` directory is deliberately absent: the agents read through a
+`FilesystemBackend`, which is not execution-capable, so deepagents filters the
 `execute` tool out — and enabling execution would void the path-based permission
 rules (deepagents raises `ConfigurationError` when `permissions` meets a sandbox
 backend). Deterministic computation stays in TypeScript tools

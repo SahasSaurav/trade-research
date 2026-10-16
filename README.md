@@ -129,9 +129,9 @@ Every research agent splits its instructions in two:
   role, scope, hard rules and guardrails;
 - the **skill** (`skills/<name>/SKILL.md`) holds the procedure — search strategy,
   source hierarchy, verification steps, output contract and worked examples;
-- its **reference** (`skills/<name>/references/reference.md`) holds the deep
-  tables — firm tiers, metric definitions, grading rubrics — read on demand, so
-  `SKILL.md` stays a procedure.
+- its **references** (`skills/<name>/references/*.md`) hold the deep tables — firm
+  tiers, metric definitions, grading rubrics, how the sell-side works — read on
+  demand, so `SKILL.md` stays a procedure.
 
 The skill is read from disk at runtime, through a read-only filesystem confined to
 that agent's own skill folder, so it costs nothing until the agent reads it.

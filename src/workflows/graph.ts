@@ -19,12 +19,12 @@ const NODE_TIMEOUT_MS = 99_999;
 type Route = "decisionAgent" | "analystRepair" | "summaryAgent";
 
 type GraphAgents = {
-	valuation: ReactAgent;
-	analyst: ReactAgent;
-	newsSentiment: ReactAgent;
-	geopolitical: ReactAgent;
-	decision: ReactAgent;
-	summary: ReactAgent;
+	valuation: ReactAgent<any>;
+	analyst: ReactAgent<any>;
+	newsSentiment: ReactAgent<any>;
+	geopolitical: ReactAgent<any>;
+	decision: ReactAgent<any>;
+	summary: ReactAgent<any>;
 	tickerSearch?: TavilySearch;
 };
 

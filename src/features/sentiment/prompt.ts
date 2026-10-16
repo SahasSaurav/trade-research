@@ -18,15 +18,4 @@ const SENTIMENT_SYSTEM_PROMPT = `Sentiment orchestrator for a U.S. public compan
 const SENTIMENT_USER_MESSAGE = (ticker: string) =>
 	`Research recent news sentiment and geopolitical risk for ${ticker}. Delegate to the news_sentiment and geopolitical subagents, then return the structured sentiment result. Include exact source URLs and dates; do not guess.`;
 
-const NEWS_SENTIMENT_SUBAGENT_DESCRIPTION =
-	"Recent company-specific news and investor sentiment for a ticker: earnings and guidance, analyst estimate or rating changes, product launches, and competitive developments. Returns dated, cited sentiment sources.";
-
-const GEOPOLITICAL_SUBAGENT_DESCRIPTION =
-	"Geopolitical and macro risks that connect materially to a ticker: conflicts, sanctions, tariffs, export controls, regulatory changes, and supply-chain disruptions. Returns cited events and a risk summary.";
-
-export {
-	GEOPOLITICAL_SUBAGENT_DESCRIPTION,
-	NEWS_SENTIMENT_SUBAGENT_DESCRIPTION,
-	SENTIMENT_SYSTEM_PROMPT,
-	SENTIMENT_USER_MESSAGE,
-};
+export { SENTIMENT_SYSTEM_PROMPT, SENTIMENT_USER_MESSAGE };

@@ -1,13 +1,9 @@
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import type { TavilySearch } from "@langchain/tavily";
-import {
-	GEOPOLITICAL_SUBAGENT_DESCRIPTION,
-	NEWS_SENTIMENT_SUBAGENT_DESCRIPTION,
-	SENTIMENT_SYSTEM_PROMPT,
-} from "@src/features/sentiment/prompt.js";
+import { SENTIMENT_SYSTEM_PROMPT } from "@src/features/sentiment/prompt.js";
 import { sentimentSchema } from "@src/features/sentiment/schema.js";
-import { createGeopoliticalAgent } from "@src/features/sentiment/subagents/geopolitical/agent.js";
-import { createNewsSentimentAgent } from "@src/features/sentiment/subagents/news-sentiment/agent.js";
+import { createGeopoliticalSubagent } from "@src/features/sentiment/subagents/geopolitical/agent.js";
+import { createNewsSentimentSubagent } from "@src/features/sentiment/subagents/news-sentiment/agent.js";
 import {
 	AGENT_GUARD_CONFIG,
 	agentGuardMiddleware,
@@ -16,9 +12,9 @@ import { createDeepAgent } from "deepagents";
 import { toolStrategy } from "langchain";
 
 /**
- * One orchestrator over two native subagents. The subagents keep their own
- * structured schemas and guard middleware, so the orchestrator only collects
- * their cited evidence and returns the sentiment artifact.
+ * One orchestrator over two native subagents. Each subagent owns its identity,
+ * prompt, schema and guard middleware, so the orchestrator only collects their
+ * cited evidence and returns the sentiment artifact.
  */
 function createSentimentAgent(deps: {
 	model: BaseChatModel;
@@ -30,16 +26,8 @@ function createSentimentAgent(deps: {
 		responseFormat: toolStrategy(sentimentSchema),
 		middleware: agentGuardMiddleware(),
 		subagents: [
-			{
-				name: "news_sentiment",
-				description: NEWS_SENTIMENT_SUBAGENT_DESCRIPTION,
-				runnable: createNewsSentimentAgent(deps),
-			},
-			{
-				name: "geopolitical",
-				description: GEOPOLITICAL_SUBAGENT_DESCRIPTION,
-				runnable: createGeopoliticalAgent(deps),
-			},
+			createNewsSentimentSubagent(deps),
+			createGeopoliticalSubagent(deps),
 		],
 	}).withConfig(AGENT_GUARD_CONFIG);
 }

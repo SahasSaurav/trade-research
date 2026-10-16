@@ -15,7 +15,7 @@ source (publisher or platform) | sentiment (positive, neutral, negative) | evide
 ## Method
 Search the company, its industry, and key geographic markets; identify sentiment drivers (earnings misses, product launches, competitive wins/losses, analyst upgrades).`;
 
-const NEWS_SENTIMENT_USER_MESSAGE = (ticker: string) =>
-	`Research recent company news and investor sentiment for ${ticker}. Focus on credible developments affecting the company's outlook or stock sentiment. Include source URLs and dates; do not guess.`;
+const NEWS_SENTIMENT_SUBAGENT_DESCRIPTION =
+	"Recent company-specific news and investor sentiment for a ticker: earnings and guidance, analyst estimate or rating changes, product launches, and competitive developments. Returns dated, cited sentiment sources.";
 
-export { NEWS_SENTIMENT_SYSTEM_PROMPT, NEWS_SENTIMENT_USER_MESSAGE };
+export { NEWS_SENTIMENT_SUBAGENT_DESCRIPTION, NEWS_SENTIMENT_SYSTEM_PROMPT };

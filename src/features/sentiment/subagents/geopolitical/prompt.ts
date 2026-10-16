@@ -16,7 +16,7 @@ event (concise) | affectedRegion | eventDate and publicationDate (YYYY-MM-DD whe
 ## Method
 Search the company's key regions — manufacturing hubs, sales regions, supplier concentrations. Confirm the company connection before including each event, assess timeframe and confidence, then synthesize a geopolitical summary kept distinct from general sentiment so neither obscures the other.`;
 
-const GEOPOLITICAL_USER_MESSAGE = (ticker: string) =>
-	`Research current geopolitical developments that may materially affect ${ticker}, its industry, suppliers, customers, supply chain, or markets. Include only evidence-backed company connections and cite exact source URLs and dates. State clearly if no material factor is found.`;
+const GEOPOLITICAL_SUBAGENT_DESCRIPTION =
+	"Geopolitical and macro risks that connect materially to a ticker: conflicts, sanctions, tariffs, export controls, regulatory changes, and supply-chain disruptions. Returns cited events and a risk summary.";
 
-export { GEOPOLITICAL_SYSTEM_PROMPT, GEOPOLITICAL_USER_MESSAGE };
+export { GEOPOLITICAL_SUBAGENT_DESCRIPTION, GEOPOLITICAL_SYSTEM_PROMPT };

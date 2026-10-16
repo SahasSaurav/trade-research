@@ -17,4 +17,3 @@ const newsSentimentResearchSchema = z.object({
 });
 
 export { newsSentimentResearchSchema };
-export type NewsSentimentResearch = z.infer<typeof newsSentimentResearchSchema>;

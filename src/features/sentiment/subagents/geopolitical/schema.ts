@@ -34,4 +34,3 @@ const geopoliticalResearchSchema = z.object({
 });
 
 export { GeopoliticalEventSchema, geopoliticalResearchSchema };
-export type GeopoliticalResearch = z.infer<typeof geopoliticalResearchSchema>;

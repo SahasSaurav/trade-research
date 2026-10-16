@@ -29,9 +29,9 @@ Invariants the pipeline depends on — do not break these:
 - Agents return **structured output** via `responseFormat: toolStrategy(schema)`;
   nodes read `result.structuredResponse`.
 - Orchestration stays in the explicit `StateGraph` — keep it deterministic.
-- One shared agent contract (`AgentRunnable<T>`, `src/workflows/agent.ts`); nodes
-  must not care which implementation they hold. `createAgent` and
-  `createDeepAgent` both satisfy it — no widened `any`.
+- One shared agent contract: langchain's `ReactAgent<AgentTypeConfig<T>>`,
+  parameterised by the node's artifact type. `createAgent` and `createDeepAgent`
+  both satisfy it — no widened `any`, no custom wrapper type.
 - The model-call budget lives in `src/workflows/agent-guard.ts`; size budgets from
   a real trace, not a round number.
 - Configuration goes through `loadConfig`; never bake secrets or `.env`.

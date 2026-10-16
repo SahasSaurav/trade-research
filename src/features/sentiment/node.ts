@@ -3,8 +3,8 @@ import { runResearch } from "@src/features/sentiment/research.js";
 import type { SentimentData } from "@src/features/sentiment/schema.js";
 import { sentimentSchema } from "@src/features/sentiment/schema.js";
 import { scoreSentimentSources } from "@src/features/sentiment/score.js";
-import type { AgentRunnable } from "@src/workflows/agent.js";
 import type { GraphState } from "@src/workflows/state.js";
+import type { AgentTypeConfig, ReactAgent } from "langchain";
 
 /** A total failure of the orchestrator, with no per-branch detail to keep. */
 function failedSentiment(ticker: string, error: string): SentimentData {
@@ -24,7 +24,7 @@ function failedSentiment(ticker: string, error: string): SentimentData {
 }
 
 function createSentimentNode(
-	agent: AgentRunnable<SentimentData>,
+	agent: ReactAgent<AgentTypeConfig<SentimentData>>,
 	researchAttempts?: number,
 ) {
 	return async (state: GraphState) => {

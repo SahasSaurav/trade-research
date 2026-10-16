@@ -25,8 +25,8 @@ agent catalogue are in [AGENTS.md](AGENTS.md); system design in
   nodes read `result.structuredResponse`.
 - Orchestration stays in the explicit `StateGraph` — keep it deterministic and
   testable. Deep agents plan inside a node; they never own the graph.
-- One shared agent contract (`AgentRunnable<T>`, `src/workflows/agent.ts`); nodes
-  must not care which implementation they hold. `createAgent` and `createDeepAgent`
+- One shared agent contract: langchain's `ReactAgent<AgentTypeConfig<T>>`,
+  parameterised by the node's artifact type. `createAgent` and `createDeepAgent`
   both satisfy it without a widened `any`.
 - **Deep agents only where they earn it.** Valuation, analyst, and the sentiment
   orchestrator use `createDeepAgent`; decision and summary stay `createAgent`.

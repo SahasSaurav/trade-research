@@ -1,7 +1,7 @@
 import { START } from "@langchain/langgraph";
-import type { AgentRunnable } from "@src/workflows/agent.js";
 import type { GraphAgents } from "@src/workflows/graph.js";
 import { createGraph } from "@src/workflows/graph.js";
+import type { AgentTypeConfig, ReactAgent } from "langchain";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -58,7 +58,7 @@ const goodSentiment = {
 type Stub = { invokeCount: number; responses: unknown[] };
 
 function stubAgent(responses: unknown[]): {
-	agent: AgentRunnable<never>;
+	agent: ReactAgent<AgentTypeConfig<never>>;
 	stub: Stub;
 } {
 	const stub: Stub = { invokeCount: 0, responses };
@@ -71,7 +71,7 @@ function stubAgent(responses: unknown[]): {
 				stub.invokeCount += 1;
 				return { structuredResponse: response };
 			},
-		} as unknown as AgentRunnable<never>,
+		} as unknown as ReactAgent<AgentTypeConfig<never>>,
 	};
 }
 

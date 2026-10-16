@@ -104,7 +104,6 @@ src/
     graph.ts                   the StateGraph (nodes + edges)
     workflow.ts                builds model, tools, agents
     state.ts                   WorkflowState channels
-    agent.ts                   shared AgentRunnable contract
     agent-guard.ts             model-call budget middleware
   features/
     ticker/                    ticker validation node

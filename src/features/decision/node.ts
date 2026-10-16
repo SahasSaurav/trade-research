@@ -1,9 +1,9 @@
 import { DECISION_USER_MESSAGE } from "@src/features/decision/prompt.js";
 import type { DecisionData } from "@src/features/decision/schema.js";
-import type { AgentRunnable } from "@src/workflows/agent.js";
 import type { GraphState } from "@src/workflows/state.js";
+import type { AgentTypeConfig, ReactAgent } from "langchain";
 
-function createDecisionNode(agent: AgentRunnable<DecisionData>) {
+function createDecisionNode(agent: ReactAgent<AgentTypeConfig<DecisionData>>) {
 	return async (state: GraphState) => {
 		const context = {
 			ticker: state.ticker,

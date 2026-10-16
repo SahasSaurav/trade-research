@@ -8,8 +8,8 @@ import type { SentimentData } from "@src/features/sentiment/schema.js";
 import { createSummaryNode } from "@src/features/summary/node.js";
 import { createValidationNode } from "@src/features/validation/node.js";
 import { createValuationNode } from "@src/features/valuation/node.js";
-import type { AgentRunnable } from "@src/workflows/agent.js";
 import type { GraphState } from "@src/workflows/state.js";
+import type { AgentTypeConfig, ReactAgent } from "langchain";
 import { describe, expect, it } from "vitest";
 
 type State = GraphState;
@@ -93,10 +93,10 @@ const goodDecision: DecisionData = {
 	disclaimer: "d",
 };
 
-function agentReturning(response: unknown): AgentRunnable<never> {
+function agentReturning(response: unknown): ReactAgent<AgentTypeConfig<never>> {
 	return {
 		invoke: async () => ({ structuredResponse: response }),
-	} as unknown as AgentRunnable<never>;
+	} as unknown as ReactAgent<AgentTypeConfig<never>>;
 }
 
 describe("validation node", () => {
@@ -167,7 +167,7 @@ describe("pass-through nodes", () => {
 				seen = input;
 				return { structuredResponse: goodValuation };
 			},
-		} as unknown as AgentRunnable<never>;
+		} as unknown as ReactAgent<AgentTypeConfig<never>>;
 
 		await createValuationNode(agent)(state({ ticker: "MSFT" }));
 
@@ -193,7 +193,7 @@ describe("pass-through nodes", () => {
 				seen = JSON.stringify(input);
 				return { structuredResponse: null };
 			},
-		} as unknown as AgentRunnable<never>;
+		} as unknown as ReactAgent<AgentTypeConfig<never>>;
 
 		await createSummaryNode(agent)(
 			state({
@@ -222,7 +222,7 @@ describe("pass-through nodes", () => {
 				seen = JSON.stringify(input);
 				return { structuredResponse: null };
 			},
-		} as unknown as AgentRunnable<never>;
+		} as unknown as ReactAgent<AgentTypeConfig<never>>;
 
 		await createSummaryNode(agent)(
 			state({
@@ -254,7 +254,7 @@ describe("pass-through nodes", () => {
 				seen = input;
 				return { structuredResponse: { recommendation: "hold" } };
 			},
-		} as unknown as AgentRunnable<never>;
+		} as unknown as ReactAgent<AgentTypeConfig<never>>;
 
 		await createDecisionNode(agent)(
 			state({
@@ -297,7 +297,7 @@ describe("pass-through nodes", () => {
 			invoke: async () => {
 				throw new Error("provider exploded");
 			},
-		} as unknown as AgentRunnable<never>;
+		} as unknown as ReactAgent<AgentTypeConfig<never>>;
 
 		await expect(createValuationNode(agent)(state())).rejects.toThrow(
 			"provider exploded",
@@ -313,7 +313,7 @@ describe("analyst repair node", () => {
 				seen = input;
 				return { structuredResponse: goodAnalyst };
 			},
-		} as unknown as AgentRunnable<never>;
+		} as unknown as ReactAgent<AgentTypeConfig<never>>;
 
 		const node = createAnalystRepairNode(agent);
 		await node(

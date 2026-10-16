@@ -79,7 +79,6 @@ Node names deliberately differ from channel names (`tickerCheck` vs
 | Wiring                 | `src/workflows/workflow.ts`    | Build model, tools, agents; assemble                 | providers, features |
 | State                  | `src/workflows/state.ts`       | Channel definitions                                  | feature schemas     |
 | Guard                  | `src/workflows/agent-guard.ts` | Model-call budget middleware                         | langchain           |
-| Agent contract         | `src/workflows/agent.ts`       | Structural `AgentRunnable<T>` the graph depends on   | —                   |
 | Features               | `src/features/*/`              | One agent/node/tool per capability                   | langchain, schemas  |
 | Sentiment orchestrator | `src/features/sentiment/`      | Deep agent + native subagents; deterministic rescore | subagents           |
 | Report                 | `src/report/render.ts`         | Render artifacts to terminal                         | —                   |

@@ -1,8 +1,8 @@
 import { createSentimentNode } from "@src/features/sentiment/node.js";
 import type { SentimentData } from "@src/features/sentiment/schema.js";
 import { scoreSentimentSources } from "@src/features/sentiment/score.js";
-import type { AgentRunnable } from "@src/workflows/agent.js";
 import type { GraphState } from "@src/workflows/state.js";
+import type { AgentTypeConfig, ReactAgent } from "langchain";
 import { describe, expect, it } from "vitest";
 
 type SentimentSources = SentimentData["sentimentSources"];
@@ -41,10 +41,10 @@ function sentiment(overrides: Partial<SentimentData> = {}): SentimentData {
 	};
 }
 
-function agentReturning(response: unknown): AgentRunnable<never> {
+function agentReturning(response: unknown): ReactAgent<AgentTypeConfig<never>> {
 	return {
 		invoke: async () => ({ structuredResponse: response }),
-	} as unknown as AgentRunnable<never>;
+	} as unknown as ReactAgent<AgentTypeConfig<never>>;
 }
 
 function state(ticker = "AAPL"): GraphState {
@@ -214,7 +214,7 @@ describe("sentiment node", () => {
 				// reports it without retrying.
 				throw Object.assign(new Error("boom"), { status: 400 });
 			},
-		} as unknown as AgentRunnable<SentimentData>;
+		} as unknown as ReactAgent<AgentTypeConfig<SentimentData>>;
 		const node = createSentimentNode(agent);
 
 		const update = await node(state());

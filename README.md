@@ -41,15 +41,16 @@ npm install
 | `npm start`     | Same, via `tsx`                                                 |
 | `npm test`      | Vitest suite                                                    |
 | `npm run check` | Lint + format check + typecheck                                 |
-| `npm run build` | `tsc` compile to `dist/` (see note below)                       |
+| `npm run build` | `tsc` compile to a runnable `dist/` (see note below)            |
 
 The pipeline takes minutes; it streams `▸ <node>` lines as each node finishes,
 then prints the report.
 
 > **Build note:** `tsc` leaves the `@src/*` path aliases in the emitted `dist/`,
-> which Node cannot resolve. The app therefore **runs from source via `tsx`**
-> (`npm start`, and the Docker image), which resolves the aliases. `dist/` is not
-> a runnable artifact.
+> which Node cannot resolve. `npm run build` therefore rewrites them to relative
+> paths (`scripts/rewrite-src-aliases.mjs`), so the result runs on plain Node as
+> `node dist/src/index.js` — which is what the Docker image runs. Development
+> still runs from source via `tsx` (`npm start`, `npm run dev`), for speed.
 
 ## Configuration
 
@@ -114,6 +115,8 @@ src/
     decision/                  structured recommendation agent
     summary/                   prose analyst-note agent
     search/tool.ts             Tavily wrapper with query rewriting
+scripts/
+  rewrite-src-aliases.mjs      rewrites @src imports so the build runs on node
 skills/
   <agent>/SKILL.md             the how-to for each research agent, read at runtime
 ```

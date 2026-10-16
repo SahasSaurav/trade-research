@@ -197,13 +197,14 @@ the recommendation.
 
 ## Runtime and build
 
-- **Runtime:** `tsx` executes the TypeScript directly (`npm start`), resolving the
-  tsconfig `@src/*` aliases at runtime.
-- **`tsc` build:** emits `dist/` but leaves `@src/*` specifiers that Node cannot
-  resolve — so `dist/` is _not_ the run path.
-- **Docker:** multi-stage `node:26-alpine` (deps + runtime), prod deps only,
-  non-root, runs `tsx` from source. No filesystem state (the checkpointer is an
-  in-memory `MemorySaver`), no ports.
+- **Runtime:** `tsx` executes the TypeScript directly in development (`npm start`,
+  `npm run dev`), resolving the tsconfig `@src/*` aliases at runtime.
+- **`tsc` build:** `npm run build` compiles to `dist/`, then rewrites the `@src/*`
+  specifiers to relative paths (`scripts/rewrite-src-aliases.mjs`) so the output is
+  a runnable artifact on plain Node — no loader, no TypeScript sources.
+- **Docker:** multi-stage `node:26-alpine` (deps → build → prod-deps → runtime),
+  prod deps only, non-root, runs the compiled `dist/src/index.js`. No filesystem
+  state (the checkpointer is an in-memory `MemorySaver`), no ports.
 
 ## Design decisions
 

@@ -7,9 +7,10 @@ agent catalogue are in [AGENTS.md](AGENTS.md); system design in
 ## Language and tooling
 
 - **TypeScript**, `strict`, ESM (`"module": "nodenext"`).
-- Run via **`tsx`** (`npm start`, `npm run dev`); the compiled `dist/` is not a
-  runnable artifact (the `@src/*` aliases survive `tsc` and Node can't resolve
-  them).
+- Run via **`tsx`** in development (`npm start`, `npm run dev`). `npm run build`
+  compiles to `dist/` and rewrites the `@src/*` aliases to relative paths
+  (`scripts/rewrite-src-aliases.mjs`), so the built output runs on plain `node`
+  and is what the Docker image executes.
 - **Lint / format:** oxlint + oxfmt (tabs). `npm run check` = lint +
   `format:check` + `typecheck`.
 - **Tests:** vitest (`npm test`).

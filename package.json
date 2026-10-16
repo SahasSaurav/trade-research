@@ -11,7 +11,7 @@
 		"dev:valuation": "tsx src/index.ts --valuation",
 		"dev:analyst": "tsx src/index.ts --analyst",
 		"start": "tsx src/index.ts",
-		"build": "tsc",
+		"build": "tsc && node scripts/rewrite-src-aliases.mjs",
 		"lint": "oxlint",
 		"lint:fix": "oxlint --fix",
 		"format": "oxfmt",

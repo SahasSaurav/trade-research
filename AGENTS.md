@@ -19,7 +19,7 @@ agents run as nodes in one explicit `StateGraph`; three of them are deep agents
 | `npm test`                  | Vitest suite                                       |
 | `npm run check`             | Lint + format check + typecheck                    |
 | `npm run typecheck`         | `tsc --noEmit`                                     |
-| `npm run build`             | `tsc` compile to `dist/` (not a runnable artifact) |
+| `npm run build`             | `tsc` compile to a runnable `dist/`                |
 
 ## Architecture rules
 

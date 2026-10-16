@@ -57,10 +57,17 @@
 
 ## Sanity checks
 
-| Check                        | Rule                                     | Action if violated                                            |
-| ---------------------------- | ---------------------------------------- | ------------------------------------------------------------- |
-| **Price date**               | Within 2 days of today                   | Use most recent, note staleness                               |
-| **EPS date**                 | TTM latest Q filing ≤90 days             | Flag if older; use only if no fresher data                    |
-| **Forward vs. trailing EPS** | Usually close (±10%)                     | If forward <trailing by >10%, flag declining earnings         |
-| **Trailing vs. forward P/E** | Differ by >30%?                          | Investigate earnings inflection/seasonality; note explanation |
-| **Forward EPS growth**       | If >trailing by >20%, flag strong growth | Expected? Growth company (check sector); note it              |
+| Check                        | Rule                                     | Action if violated                                                |
+| ---------------------------- | ---------------------------------------- | ----------------------------------------------------------------- |
+| **Price date**               | Within 2 days of today                   | Use most recent, note staleness                                   |
+| **EPS date**                 | TTM latest Q filing ≤90 days             | Flag if older; use only if no fresher data                        |
+| **Forward vs. trailing EPS** | Usually close (±10%)                     | If forward <trailing by >10%, flag declining earnings             |
+| **Trailing vs. forward P/E** | Differ by >30%?                          | Investigate earnings inflection/seasonality; note explanation     |
+| **Forward EPS growth**       | If >trailing by >20%, flag strong growth | Expected? Growth company (check sector); note it                  |
+| **EPS sign**                 | Both EPS figures positive                | Negative EPS makes the P/E meaningless — pass 0, explain in notes |
+| **Earnings basis**           | GAAP or adjusted, stated                 | Say which basis whenever the two differ materially                |
+| **Share count**              | Diluted; steady absent buybacks/issuance | Flag a material share-count change in notes                       |
+
+Multiples behave differently by sector and by cycle — see
+[`valuation-practice.md`](valuation-practice.md) for what each one measures, which
+multiple a sector uses, and why trailing and forward can disagree.

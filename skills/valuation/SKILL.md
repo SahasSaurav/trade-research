@@ -15,7 +15,7 @@ metadata:
 
 # Equity valuation research
 
-Collect and cross-verify valuation metrics for U.S. public companies. Evidence only — interpretation comes later.
+Collect and cross-verify valuation metrics for U.S. public companies, and record them with the context that keeps them honest. Evidence only — interpretation comes later.
 
 ## Core workflow
 
@@ -121,7 +121,30 @@ Input: price=341.12, trailingEps=8.93, forwardEps=9.85, growthRate=12.4
 → EMIT: These exact numbers verbatim
 ```
 
-### Step 6: Cross-check and note conflicts
+### Step 6: Know what the multiple does and does not say
+
+A multiple compresses growth, capital structure and accounting into one number, so
+record it with the context that keeps it honest — still without opining on the
+stock:
+
+- **A trailing/forward gap is information.** An inflection, a cyclical trough or
+  peak, a one-off, a buyback or a stale consensus each move one against the other.
+  Name the reason in `notes`.
+- **A P/E is only comparable on matched capital structure and accounting.**
+  Leverage, buybacks and non-GAAP add-backs move it without the business changing.
+- **The sector may not trade on P/E at all** — banks on book, REITs on FFO, energy
+  on EV/EBITDA. Say so in `notes` instead of implying the P/E informs.
+- **PEG needs positive, durable growth.** Peak-cycle growth flatters it; low or
+  negative growth makes it meaningless.
+- **Negative earnings are not a usable divisor.** Pass `0` to the tool so the
+  multiple returns `null`, and explain in `notes`; never emit a negative P/E.
+
+`references/valuation-practice.md` covers the craft in depth — the methods behind a
+valuation, what each multiple prices and hides, which multiple a sector uses, why
+trailing and forward disagree, the growth traps in PEG, and the rate and cycle
+context a multiple needs.
+
+### Step 7: Cross-check and note conflicts
 
 **Rule:** Two independent sources per metric (one official, one aggregator). Flag conflicts rather than averaging them away.
 
@@ -140,13 +163,18 @@ Input: price=341.12, trailingEps=8.93, forwardEps=9.85, growthRate=12.4
 - Difference: 1.3% → acceptable
 - Note: "Consensus slightly above company guidance; used consensus $9.85"
 
-### Step 7: Emit the output contract
+### Step 8: Emit the output contract
 
 Return valid JSON with no prose.
 
 ## Reference
 
-Deeper detail — the source hierarchy, the metric definitions and the sanity checks — lives in [`references/reference.md`](references/reference.md). Read it when the workflow points you at a table that is not here.
+Deeper detail lives in two files beside this one:
+
+- [`references/reference.md`](references/reference.md) — the source hierarchy, the metric definitions and the sanity checks.
+- [`references/valuation-practice.md`](references/valuation-practice.md) — how valuation is actually done: the methods, what each multiple prices and hides, the sector's own metric, trailing-versus-forward divergence, the growth traps in PEG, and the rate and cycle context.
+
+Read them when the workflow points you at a table that is not here.
 
 ## Output contract
 
@@ -203,6 +231,9 @@ Deeper detail — the source hierarchy, the metric definitions and the sanity ch
 - ❌ Mixing calendar-year and fiscal-year EPS without noting it
 - ❌ Recording source URLs you never opened
 - ❌ Averaging away a >5% EPS conflict instead of flagging it
+- ❌ Emitting a negative P/E from a negative EPS instead of treating it as not meaningful
+- ❌ A multiple quoted with no period, no accounting basis and no leverage context
+- ❌ Feeding peak-cycle growth into PEG without flagging the cycle
 
 ## Troubleshooting
 
@@ -234,3 +265,16 @@ Deeper detail — the source hierarchy, the metric definitions and the sanity ch
 - If only one source exists, set the metric to `null` with explanation in notes
 - Do not use a single source; the verification rule requires two
 - Exception: SEC filing alone (official source) can suffice; supplement with one aggregator
+
+**The EPS is negative?**
+
+- Negative EPS is not a usable divisor: pass `0` for it so the multiple returns
+  `null`, and say "negative TTM EPS — P/E not meaningful" in `notes`
+- Never record the negative number the division produces
+
+**The sector does not trade on P/E?**
+
+- Record the verified P/E and add the caveat in `notes` (for example, "bank — the
+  sector trades on book value, so P/E is not the informative metric")
+- The schema carries only P/E and PEG, so there is no EV/EBITDA field to populate;
+  `null` plus a reason is the honest record when the P/E is meaningless

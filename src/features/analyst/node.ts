@@ -2,10 +2,11 @@ import {
 	ANALYST_REPAIR_USER_MESSAGE,
 	ANALYST_USER_MESSAGE,
 } from "@src/features/analyst/prompt.js";
+import type { AnalystReportData } from "@src/features/analyst/schema.js";
+import type { AgentRunnable } from "@src/workflows/agent.js";
 import type { GraphState } from "@src/workflows/state.js";
-import type { ReactAgent } from "langchain";
 
-function createAnalystNode(agent: ReactAgent) {
+function createAnalystNode(agent: AgentRunnable<AnalystReportData>) {
 	return async (state: GraphState) => {
 		const result = await agent.invoke({
 			messages: [
@@ -21,7 +22,7 @@ function createAnalystNode(agent: ReactAgent) {
 	};
 }
 
-function createAnalystRepairNode(agent: ReactAgent) {
+function createAnalystRepairNode(agent: AgentRunnable<AnalystReportData>) {
 	return async (state: GraphState) => {
 		const result = await agent.invoke({
 			messages: [

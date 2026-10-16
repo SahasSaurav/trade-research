@@ -4,26 +4,31 @@ import {
 	createAnalystNode,
 	createAnalystRepairNode,
 } from "@src/features/analyst/node.js";
+import type { AnalystReportData } from "@src/features/analyst/schema.js";
 import { createDecisionNode } from "@src/features/decision/node.js";
+import type { DecisionData } from "@src/features/decision/schema.js";
 import { createSentimentNode } from "@src/features/sentiment/node.js";
+import type { SentimentData } from "@src/features/sentiment/schema.js";
 import { createSummaryNode } from "@src/features/summary/node.js";
+import type { SummaryData } from "@src/features/summary/schema.js";
 import { createTickerValidationNode } from "@src/features/ticker/node.js";
 import { createValidationNode } from "@src/features/validation/node.js";
 import { createValuationNode } from "@src/features/valuation/node.js";
+import type { ValuationData } from "@src/features/valuation/schema.js";
+import type { AgentRunnable } from "@src/workflows/agent.js";
 import type { GraphState } from "@src/workflows/state.js";
 import { WorkflowState } from "@src/workflows/state.js";
-import type { ReactAgent } from "langchain";
 
 const NODE_TIMEOUT_MS = 99_999;
 
 type Route = "decisionAgent" | "analystRepair" | "summaryAgent";
 
 type GraphAgents = {
-	valuation: ReactAgent<any>;
-	analyst: ReactAgent<any>;
-	sentiment: ReactAgent<any>;
-	decision: ReactAgent<any>;
-	summary: ReactAgent<any>;
+	valuation: AgentRunnable<ValuationData>;
+	analyst: AgentRunnable<AnalystReportData>;
+	sentiment: AgentRunnable<SentimentData>;
+	decision: AgentRunnable<DecisionData>;
+	summary: AgentRunnable<SummaryData>;
 	tickerSearch?: TavilySearch;
 };
 

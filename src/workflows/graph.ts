@@ -21,8 +21,7 @@ type Route = "decisionAgent" | "analystRepair" | "summaryAgent";
 type GraphAgents = {
 	valuation: ReactAgent<any>;
 	analyst: ReactAgent<any>;
-	newsSentiment: ReactAgent<any>;
-	geopolitical: ReactAgent<any>;
+	sentiment: ReactAgent<any>;
 	decision: ReactAgent<any>;
 	summary: ReactAgent<any>;
 	tickerSearch?: TavilySearch;
@@ -61,11 +60,7 @@ function createGraph(agents: GraphAgents, options: GraphOptions = {}) {
 		})
 		.addNode(
 			"sentimentAgent",
-			createSentimentNode(
-				agents.newsSentiment,
-				agents.geopolitical,
-				options.researchAttempts,
-			),
+			createSentimentNode(agents.sentiment, options.researchAttempts),
 			{
 				timeout: NODE_TIMEOUT_MS,
 			},

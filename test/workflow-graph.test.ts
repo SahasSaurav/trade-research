@@ -41,6 +41,19 @@ const goodValuation = {
 
 const decision = { recommendation: "hold" };
 const summary = { ticker: "AAPL", dateChecked: TODAY, summary: "final text" };
+const goodSentiment = {
+	ticker: "AAPL",
+	overallSentiment: "neutral",
+	sentimentScore: 0,
+	sentimentSources: [],
+	geopoliticalRisks: [],
+	geopoliticalSummary: "none",
+	researchStatus: { news: "complete", geopolitical: "complete" },
+	researchErrors: [],
+	dateChecked: TODAY,
+	sourceUrls: [],
+	notes: null,
+};
 
 type Stub = { invokeCount: number; responses: unknown[] };
 
@@ -68,31 +81,14 @@ function buildAgents(
 			? [goodAnalyst]
 			: (overrides.analyst as unknown[]),
 	);
-	const newsSentiment = stubAgent([
-		overrides.newsSentiment ?? {
-			ticker: "AAPL",
-			sentimentSources: [],
-			sourceUrls: [],
-			notes: "",
-		},
-	]);
-	const geopolitical = stubAgent([
-		overrides.geopolitical ?? {
-			ticker: "AAPL",
-			geopoliticalRisks: [],
-			geopoliticalSummary: "none",
-			sourceUrls: [],
-			notes: "",
-		},
-	]);
+	const sentiment = stubAgent([overrides.sentiment ?? goodSentiment]);
 	const decisionAgent = stubAgent([overrides.decision ?? decision]);
 	const summaryAgent = stubAgent([overrides.summary ?? summary]);
 
 	const agents: GraphAgents = {
 		valuation: valuation.agent,
 		analyst: analyst.agent,
-		newsSentiment: newsSentiment.agent,
-		geopolitical: geopolitical.agent,
+		sentiment: sentiment.agent,
 		decision: decisionAgent.agent,
 		summary: summaryAgent.agent,
 	};
@@ -101,8 +97,7 @@ function buildAgents(
 		agents,
 		valuation,
 		analyst,
-		newsSentiment,
-		geopolitical,
+		sentiment,
 		decisionAgent,
 		summaryAgent,
 	};
@@ -224,31 +219,17 @@ describe("workflow graph", () => {
 		expect(analyst.stub.invokeCount).toBe(1);
 	});
 
-	it("keeps partial sentiment when one subagent fails", async () => {
-		const newsFailure = Object.assign(new Error("tavily down"), {
-			status: 503,
+	it("keeps partial sentiment when one branch fails", async () => {
+		// A single branch failing is a designed outcome: the orchestrator still
+		// returns the artifact, with researchStatus marking the failed branch.
+		const { agents, decisionAgent } = buildAgents({
+			sentiment: {
+				...goodSentiment,
+				researchStatus: { news: "failed", geopolitical: "complete" },
+			},
 		});
-		const news = {
-			invoke: async () => {
-				throw newsFailure;
-			},
-		} as unknown as ReactAgent;
-		const geopolitical = stubAgent([
-			{
-				ticker: "AAPL",
-				geopoliticalRisks: [],
-				geopoliticalSummary: "none",
-				sourceUrls: [],
-				notes: "",
-			},
-		]);
 
-		const { agents, decisionAgent } = buildAgents();
-		const result = await run({
-			...agents,
-			newsSentiment: news,
-			geopolitical: geopolitical.agent,
-		});
+		const result = await run(agents);
 
 		// researchStatus.failed is not a validation failure, so the run
 		// continues to a decision on partial data.

@@ -7,8 +7,7 @@ import { loadConfig } from "@src/config/config.js";
 import { createAnalystAgent } from "@src/features/analyst/agent.js";
 import { createDecisionAgent } from "@src/features/decision/agent.js";
 import { createSearchTool } from "@src/features/search/tool.js";
-import { createGeopoliticalAgent } from "@src/features/sentiment/subagents/geopolitical/agent.js";
-import { createNewsSentimentAgent } from "@src/features/sentiment/subagents/news-sentiment/agent.js";
+import { createSentimentAgent } from "@src/features/sentiment/agent.js";
 import { createSummaryAgent } from "@src/features/summary/agent.js";
 import { createValuationAgent } from "@src/features/valuation/agent.js";
 import { createGraph, type GraphAgents } from "@src/workflows/graph.js";
@@ -102,12 +101,9 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 	const analystAgent =
 		deps.agents?.analyst ??
 		createAnalystAgent({ model, search: referenceSearch });
-	const newsSentimentAgent =
-		deps.agents?.newsSentiment ??
-		createNewsSentimentAgent({ model, search: newsSearch });
-	const geopoliticalAgent =
-		deps.agents?.geopolitical ??
-		createGeopoliticalAgent({ model, search: newsSearch });
+	const sentimentAgent =
+		deps.agents?.sentiment ??
+		createSentimentAgent({ model, search: newsSearch });
 	const decisionAgent = deps.agents?.decision ?? createDecisionAgent({ model });
 	const summaryAgent = deps.agents?.summary ?? createSummaryAgent({ model });
 
@@ -115,8 +111,7 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 		{
 			valuation: valuationAgent,
 			analyst: analystAgent,
-			newsSentiment: newsSentimentAgent,
-			geopolitical: geopoliticalAgent,
+			sentiment: sentimentAgent,
 			decision: decisionAgent,
 			summary: summaryAgent,
 			tickerSearch: referenceSearch,
@@ -133,8 +128,7 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 		newsSearch,
 		valuationAgent,
 		analystAgent,
-		newsSentimentAgent,
-		geopoliticalAgent,
+		sentimentAgent,
 		decisionAgent,
 		summaryAgent,
 		workflow,

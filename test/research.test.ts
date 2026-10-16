@@ -1,4 +1,4 @@
-import { runResearch } from "@src/features/sentiment/workflow/research.js";
+import { runResearch } from "@src/features/sentiment/research.js";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 

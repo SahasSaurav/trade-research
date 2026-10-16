@@ -71,17 +71,17 @@ Node names deliberately differ from channel names (`tickerCheck` vs
 
 ## Component boundaries
 
-| Component              | Module                         | Responsibility                                       | Depends on          |
-| ---------------------- | ------------------------------ | ---------------------------------------------------- | ------------------- |
-| CLI entry              | `src/index.ts`                 | Stream the graph, render the report                  | workflow, report    |
-| Config                 | `src/config/config.ts`         | Validate env into a typed config                     | zod                 |
-| Graph                  | `src/workflows/graph.ts`       | Nodes + edges, routing, node timeouts                | nodes, state        |
-| Wiring                 | `src/workflows/workflow.ts`    | Build model, tools, agents; assemble                 | providers, features |
-| State                  | `src/workflows/state.ts`       | Channel definitions                                  | feature schemas     |
-| Guard                  | `src/workflows/agent-guard.ts` | Model-call budget middleware                         | langchain           |
-| Features               | `src/features/*/`              | One agent/node/tool per capability                   | langchain, schemas  |
-| Sentiment orchestrator | `src/features/sentiment/`      | Deep agent + native subagents; deterministic rescore | subagents           |
-| Report                 | `src/report/render.ts`         | Render artifacts to terminal                         | —                   |
+| Component              | Module                      | Responsibility                                       | Depends on          |
+| ---------------------- | --------------------------- | ---------------------------------------------------- | ------------------- |
+| CLI entry              | `src/index.ts`              | Stream the graph, render the report                  | workflow, report    |
+| Config                 | `src/config/config.ts`      | Validate env into a typed config                     | zod                 |
+| Graph                  | `src/workflows/graph.ts`    | Nodes + edges, routing, node timeouts                | nodes, state        |
+| Wiring                 | `src/workflows/workflow.ts` | Build model, tools, agents; assemble                 | providers, features |
+| State                  | `src/workflows/state.ts`    | Channel definitions                                  | feature schemas     |
+| Skills                 | `src/workflows/skills.ts`   | Skill constants: root, tools, permissions            | deepagents          |
+| Features               | `src/features/*/`           | One agent/node/tool per capability                   | langchain, schemas  |
+| Sentiment orchestrator | `src/features/sentiment/`   | Deep agent + native subagents; deterministic rescore | subagents           |
+| Report                 | `src/report/render.ts`      | Render artifacts to terminal                         | —                   |
 
 Each feature is self-contained: `agent.ts` (construction), `node.ts` (graph node),
 `prompt.ts`, `schema.ts`, optional `tool.ts`. The graph imports only nodes and
@@ -104,6 +104,34 @@ are **deep agents** (`createDeepAgent`, `deepagents`); decision and summary use
 | ↳ `geopolitical` (subagent)   | `createAgent` | news search                                      | geopolitical research   |
 | `decision`                    | `createAgent` | none                                             | `decisionSchema`        |
 | `summary`                     | `createAgent` | none                                             | summary prose           |
+
+### Prompts and skills
+
+Instructions are split by kind. The **system prompt**
+(`src/features/<feature>/prompt.ts`) carries the contract: role, scope, hard rules
+and guardrails. The **skill** (`skills/<name>/SKILL.md`) carries the procedure:
+search strategy, source hierarchy, verification, grading rubrics, output contract
+and worked examples. A skill is read from disk at runtime through a read-only
+filesystem confined to that agent's own folder (`FilesystemBackend` over the repo
+root plus a `FilesystemPermission` allow/deny pair), so it costs no prompt tokens
+until the agent reads it.
+
+Deep tables — source hierarchies, firm tiers, metric definitions, grading rubrics —
+live in `skills/<name>/references/reference.md`, linked from `SKILL.md` and read on
+demand. A skill `scripts/` directory is deliberately absent: the agents read through
+a `FilesystemBackend`, which is not execution-capable, so deepagents filters the
+`execute` tool out — and enabling execution would void the path-based permission
+rules (deepagents raises `ConfigurationError` when `permissions` meets a sandbox
+backend). Deterministic computation stays in TypeScript tools
+(`compute_valuation_multiples`, `scoreSentimentSources`).
+
+| Agent                      | Skill folder             |
+| -------------------------- | ------------------------ |
+| `valuation`                | `skills/valuation/`      |
+| `analyst`                  | `skills/analyst/`        |
+| `sentiment` (orchestrator) | `skills/sentiment/`      |
+| ↳ `news-sentiment`         | `skills/news-sentiment/` |
+| ↳ `geopolitical`           | `skills/geopolitical/`   |
 
 Two Tavily tools (`src/workflows/workflow.ts`) because the filters differ:
 
@@ -143,22 +171,6 @@ failed-sentiment sentinel (`researchStatus` both `failed`) so the run degrades
 rather than aborting. `runResearch` (`src/features/sentiment/research.ts`) retries
 **only transient provider errors** (408/429/5xx, network codes) with exponential
 backoff and validates the result against the zod schema.
-
-## Guard: model-call budget
-
-`src/workflows/agent-guard.ts` attaches `modelCallLimitMiddleware` with
-`runLimit = 16` and `exitBehavior: "end"`.
-
-A ReAct agent is its own Pregel graph, so it gets a fresh recursion limit on every
-`invoke` and would otherwise spin to a `GraphRecursionError` that no node catches —
-aborting sibling branches that already succeeded. `exitBehavior: "end"` makes the
-agent return what it has, the node writes `undefined`, validation reports
-`insufficient_data`, and the run still produces a summary. The recursion limit
-(`16 × 4 supersteps + 10 = 74`) is derived so the call limit trips first.
-
-Every agent — deep or plain, parent or subagent — carries this middleware. Deep
-agents spend extra calls on planning and `task` delegation, so `MAX_MODEL_CALLS` may
-need raising (per agent) if a deep branch trips it.
 
 ## Configuration and providers
 
@@ -202,12 +214,12 @@ the recommendation.
   `structuredResponse`. Nothing downstream parses prose.
 - **Determinism where it matters.** Valuation multiples and sentiment scoring are
   computed in code, not by the model.
-- **Fail soft.** Budgets, timeouts, and `exitBehavior: "end"` degrade to
-  `insufficient_data` rather than aborting the run.
+- **Fail soft.** Node timeouts degrade a run to `insufficient_data` rather than
+  aborting it.
 
 ## Tests
 
 `test/` covers node contracts, tools, validation, the sentiment scorer and node,
 graph wiring, model config, and report rendering (`nodes`, `search-tool`,
-`validate`, `research`, `ticker`, `valuation-tool`, `gemini-schema`, `agent-guard`,
-`sentiment`, `model-config`, `config`, `report`, `workflow-graph`).
+`validate`, `research`, `ticker`, `valuation-tool`, `gemini-schema`, `sentiment`,
+`model-config`, `config`, `report`, `workflow-graph`).

@@ -8,8 +8,8 @@ import { TavilySearch } from "@langchain/tavily";
  * `TavilySearch._call` swallows that failure and hands the model an
  * `{ error }` object as a normal tool result, so the model treats it as data,
  * re-issues another site-only query, and gets another error. The loop runs
- * until the model-call budget in agent-guard.ts runs out, losing the whole
- * invocation to a query the API would never accept.
+ * until the agent's recursion limit trips, losing the whole invocation to a
+ * query the API would never accept.
  *
  * Rewriting the operator into Tavily's own include_domains parameter keeps the
  * model's intent and gives the API something it accepts, so the loop never

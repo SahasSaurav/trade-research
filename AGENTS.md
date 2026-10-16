@@ -32,8 +32,6 @@ Invariants the pipeline depends on — do not break these:
 - One shared agent contract: langchain's `ReactAgent<AgentTypeConfig<T>>`,
   parameterised by the node's artifact type. `createAgent` and `createDeepAgent`
   both satisfy it — no widened `any`, no custom wrapper type.
-- The model-call budget lives in `src/workflows/agent-guard.ts`; size budgets from
-  a real trace, not a round number.
 - Configuration goes through `loadConfig`; never bake secrets or `.env`.
 
 All other conventions — tooling, code/comment style, determinism, failure
@@ -59,8 +57,11 @@ createDeepAgent({
 	tools: [search, computeValuationMultiples], // optional
 	systemPrompt: VALUATION_SYSTEM_PROMPT,
 	responseFormat: toolStrategy(valuationSchema), // structured output
-	middleware: agentGuardMiddleware(), // model-call budget
-}).withConfig(AGENT_GUARD_CONFIG);
+	middleware: [todoListMiddleware()], // progress scaffolding
+	backend: new FilesystemBackend({ rootDir: REPO_ROOT, virtualMode: true }),
+	skills: [`${SKILL_DIR}/`], // this agent's one skill
+	permissions: SKILL_PERMISSIONS, // read-only inside the skill folder
+});
 ```
 
 - **Research agents** (valuation, analyst) are standalone deep agents; the
@@ -72,6 +73,14 @@ createDeepAgent({
   `deepagents` `task` tool. The model collects the sources; the score is recomputed
   deterministically (see
   [ARCHITECTURE.md](ARCHITECTURE.md#sentiment-orchestrator)).
+- **Prompt holds the contract, skill holds the procedure.** Every research agent
+  (valuation, analyst, the sentiment orchestrator and its two subagents) keeps its
+  role, scope, hard rules and guardrails in `src/features/<feature>/prompt.ts`, and
+  the how-to — search strategy, sources, verification, grading, field rules,
+  examples — in `skills/<name>/SKILL.md`, read from disk at runtime under a
+  read-only filesystem confined to that agent's own folder. Deep tables live in
+  `references/reference.md` beside it. Folder name must equal the skill's
+  frontmatter `name`.
 
 ## Deep agents — adopted for research agents
 
@@ -88,8 +97,8 @@ orchestration — deep agents only plan _within_ a node.
   is nothing to plan.
 - The whole benefit is **gated on model strength**. The default is small local
   models (Ollama), where deep agents degrade — looping, misusing the planner,
-  tripping the 16-call guard, emitting invalid structured output. Use a frontier
-  model before trusting the deep-agent branches.
+  emitting invalid structured output. Use a frontier model before trusting the
+  deep-agent branches.
 
 Adoption is staged and each step is independently revertible:
 `feat(valuation)` → `feat(analyst)` → `feat(sentiment)`. See

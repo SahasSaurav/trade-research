@@ -30,8 +30,6 @@ agent catalogue are in [AGENTS.md](AGENTS.md); system design in
   both satisfy it without a widened `any`.
 - **Deep agents only where they earn it.** Valuation, analyst, and the sentiment
   orchestrator use `createDeepAgent`; decision and summary stay `createAgent`.
-- The model-call budget lives in `src/workflows/agent-guard.ts`; size budgets from
-  a real trace, not a round number.
 - Configuration goes through `loadConfig`; never bake secrets or `.env`.
 
 ## Code and comment style
@@ -50,8 +48,8 @@ agent catalogue are in [AGENTS.md](AGENTS.md); system design in
 
 ## Failure handling
 
-- Fail soft: budgets, node timeouts, and `exitBehavior: "end"` degrade a run to
-  `insufficient_data` rather than throwing and taking down sibling branches.
+- Fail soft: node timeouts degrade a run to `insufficient_data` rather than
+  throwing and taking down sibling branches.
 - Only retry **transient** provider errors (see `runResearch`).
 
 ## Deep agents
@@ -64,5 +62,5 @@ agent catalogue are in [AGENTS.md](AGENTS.md); system design in
 - Determinism is preserved by putting the model on source _collection_ and code on
   the _number_ (`scoreSentimentSources`).
 - Only trust the deep-agent branches on a **frontier model**; small/local models
-  are net-negative. Every agent still carries `agentGuardMiddleware()`.
+  are net-negative.
 - Land changes **one agent per commit** and keep each independently revertible.

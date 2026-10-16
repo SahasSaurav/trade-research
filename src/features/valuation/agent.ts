@@ -4,11 +4,22 @@ import { VALUATION_SYSTEM_PROMPT } from "@src/features/valuation/prompt.js";
 import { valuationSchema } from "@src/features/valuation/schema.js";
 import { computeValuationMultiples } from "@src/features/valuation/tool.js";
 import {
-	AGENT_GUARD_CONFIG,
-	agentGuardMiddleware,
-} from "@src/workflows/agent-guard.js";
-import { createDeepAgent } from "deepagents";
-import { toolStrategy } from "langchain";
+	DENY_OUTSIDE_SKILL_FOLDER,
+	REPO_ROOT,
+	SKILLS_ROOT,
+} from "@src/workflows/skills.js";
+import type { FilesystemPermission } from "deepagents";
+import { FilesystemBackend, createDeepAgent } from "deepagents";
+import { todoListMiddleware, toolStrategy } from "langchain";
+
+/** The one skill this agent may read, passed directly so no sibling scan runs. */
+const SKILL_DIR = `${SKILLS_ROOT}/valuation`;
+
+/** Read-only inside the skill folder; the deny rule answers for the rest. */
+const SKILL_PERMISSIONS: FilesystemPermission[] = [
+	{ operations: ["read"], paths: [SKILL_DIR, `${SKILL_DIR}/**`] },
+	{ ...DENY_OUTSIDE_SKILL_FOLDER },
+];
 
 function createValuationAgent(deps: {
 	model: BaseChatModel;
@@ -19,8 +30,11 @@ function createValuationAgent(deps: {
 		tools: [deps.search, computeValuationMultiples],
 		systemPrompt: VALUATION_SYSTEM_PROMPT,
 		responseFormat: toolStrategy(valuationSchema),
-		middleware: agentGuardMiddleware(),
-	}).withConfig(AGENT_GUARD_CONFIG);
+		middleware: [todoListMiddleware()],
+		backend: new FilesystemBackend({ rootDir: REPO_ROOT, virtualMode: true }),
+		skills: [`${SKILL_DIR}/`],
+		permissions: SKILL_PERMISSIONS,
+	});
 }
 
 export { createValuationAgent };

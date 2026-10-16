@@ -34,8 +34,9 @@ export default defineConfig({
 			// all exercised by stub agents, so they stay in the report. Only
 			// files with no testable behaviour are excluded: the CLI entry
 			// point, the provider wiring (which constructs live SDK clients),
-			// the agent factories (thin `createAgent` calls), and the prompt
-			// templates (string constants).
+			// the skill constants (which read the repo root), the agent
+			// factories (thin `createAgent` calls), and the prompt templates
+			// (string constants).
 			//
 			// Two branches remain uncovered, both unreachable defensive guards
 			// rather than untested logic: the dataValidation router's
@@ -44,6 +45,7 @@ export default defineConfig({
 			exclude: [
 				"src/index.ts",
 				"src/workflows/workflow.ts",
+				"src/workflows/skills.ts",
 				"src/features/*/agent.ts",
 				"src/features/sentiment/subagents/*/agent.ts",
 				"src/**/prompt.ts",

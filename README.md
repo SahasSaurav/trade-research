@@ -104,7 +104,7 @@ src/
     graph.ts                   the StateGraph (nodes + edges)
     workflow.ts                builds model, tools, agents
     state.ts                   WorkflowState channels
-    agent-guard.ts             model-call budget middleware
+    skills.ts                  skill constants (root, tools, permissions)
   features/
     ticker/                    ticker validation node
     valuation/                 deep agent + compute_valuation_multiples tool
@@ -114,4 +114,31 @@ src/
     decision/                  structured recommendation agent
     summary/                   prose analyst-note agent
     search/tool.ts             Tavily wrapper with query rewriting
+skills/
+  <agent>/SKILL.md             the how-to for each research agent, read at runtime
 ```
+
+## Prompts and skills
+
+Every research agent splits its instructions in two:
+
+- the **system prompt** (`src/features/<feature>/prompt.ts`) holds the contract —
+  role, scope, hard rules and guardrails;
+- the **skill** (`skills/<name>/SKILL.md`) holds the procedure — search strategy,
+  source hierarchy, verification steps, output contract and worked examples;
+- its **reference** (`skills/<name>/references/reference.md`) holds the deep
+  tables — firm tiers, metric definitions, grading rubrics — read on demand, so
+  `SKILL.md` stays a procedure.
+
+The skill is read from disk at runtime, through a read-only filesystem confined to
+that agent's own skill folder, so it costs nothing until the agent reads it.
+
+| Agent                         | Skill                    |
+| ----------------------------- | ------------------------ |
+| valuation (deep)              | `skills/valuation/`      |
+| analyst (deep)                | `skills/analyst/`        |
+| sentiment orchestrator (deep) | `skills/sentiment/`      |
+| ↳ news_sentiment subagent     | `skills/news-sentiment/` |
+| ↳ geopolitical subagent       | `skills/geopolitical/`   |
+
+Each folder name must match the `name` in its frontmatter.

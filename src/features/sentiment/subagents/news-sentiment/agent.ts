@@ -6,22 +6,45 @@ import {
 } from "@src/features/sentiment/subagents/news-sentiment/prompt.js";
 import { newsSentimentResearchSchema } from "@src/features/sentiment/subagents/news-sentiment/schema.js";
 import {
-	AGENT_GUARD_CONFIG,
-	agentGuardMiddleware,
-} from "@src/workflows/agent-guard.js";
-import type { CompiledSubAgent } from "deepagents";
+	DENY_OUTSIDE_SKILL_FOLDER,
+	REPO_ROOT,
+	SKILLS_ROOT,
+	SKILL_TOOLS,
+} from "@src/workflows/skills.js";
+import type { CompiledSubAgent, FilesystemPermission } from "deepagents";
+import {
+	FilesystemBackend,
+	createFilesystemMiddleware,
+	createSkillsMiddleware,
+} from "deepagents";
 import { createAgent, toolStrategy } from "langchain";
+
+/** The one skill this subagent may read, passed directly so no sibling scan runs. */
+const SKILL_DIR = `${SKILLS_ROOT}/news-sentiment`;
+
+/** Read-only inside the skill folder; the deny rule answers for the rest. */
+const SKILL_PERMISSIONS: FilesystemPermission[] = [
+	{ operations: ["read"], paths: [SKILL_DIR, `${SKILL_DIR}/**`] },
+	{ ...DENY_OUTSIDE_SKILL_FOLDER },
+];
 
 /**
  * News-sentiment subagent, complete with its own identity, prompt, schema and
- * guard middleware, ready to hand to the orchestrator's `subagents` list. Built
- * as a compiled runnable (not a declarative spec) so it does not inherit
- * deepagents' default filesystem and summarization middleware.
+ * skill, ready to hand to the orchestrator's `subagents` list. Built as a
+ * compiled runnable (not a declarative spec) to keep the structured
+ * `responseFormat`, which a declarative spec does not support; the read-only
+ * filesystem it needs to load its skill is added explicitly, since a compiled
+ * runnable does not get deepagents' default stack.
  */
 function createNewsSentimentSubagent(deps: {
 	model: BaseChatModel;
 	search: TavilySearch;
 }): CompiledSubAgent {
+	const backend = new FilesystemBackend({
+		rootDir: REPO_ROOT,
+		virtualMode: true,
+	});
+
 	return {
 		name: "news_sentiment",
 		description: NEWS_SENTIMENT_SUBAGENT_DESCRIPTION,
@@ -30,8 +53,15 @@ function createNewsSentimentSubagent(deps: {
 			tools: [deps.search],
 			systemPrompt: NEWS_SENTIMENT_SYSTEM_PROMPT,
 			responseFormat: toolStrategy(newsSentimentResearchSchema),
-			middleware: agentGuardMiddleware(),
-		}).withConfig(AGENT_GUARD_CONFIG),
+			middleware: [
+				createFilesystemMiddleware({
+					backend,
+					tools: SKILL_TOOLS,
+					permissions: SKILL_PERMISSIONS,
+				}),
+				createSkillsMiddleware({ backend, sources: [`${SKILL_DIR}/`] }),
+			],
+		}),
 	};
 }
 

@@ -28,3 +28,8 @@ Dockerfile
 *.md
 .vscode
 .idea
+
+# The agent skills are markdown the runtime reads, so keep them despite the
+# *.md rule above.
+!skills
+!skills/**

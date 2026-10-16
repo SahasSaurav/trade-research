@@ -6,13 +6,14 @@ import {
 	AGENT_GUARD_CONFIG,
 	agentGuardMiddleware,
 } from "@src/workflows/agent-guard.js";
-import { createAgent, toolStrategy } from "langchain";
+import { createDeepAgent } from "deepagents";
+import { toolStrategy } from "langchain";
 
 function createAnalystAgent(deps: {
 	model: BaseChatModel;
 	search: TavilySearch;
 }) {
-	return createAgent({
+	return createDeepAgent({
 		model: deps.model,
 		tools: [deps.search],
 		systemPrompt: ANALYST_SYSTEM_PROMPT,

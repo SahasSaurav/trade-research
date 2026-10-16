@@ -503,12 +503,4 @@ function generateReport(input: ReportInput): string {
 }
 
 export type { ReportInput };
-export {
-	generateReport,
-	renderInline,
-	renderReport,
-	renderSummary,
-	stripAnsi,
-	terminalWidth,
-	visibleWidth,
-};
+export { generateReport, renderInline, renderReport, renderSummary, stripAnsi };

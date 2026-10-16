@@ -122,4 +122,4 @@ function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
 const getConfig = (): AppConfig => loadConfig();
 
 export type { AppConfig };
-export { AppConfigSchema, ConfigError, getConfig, loadConfig };
+export { ConfigError, getConfig, loadConfig };

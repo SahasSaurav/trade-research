@@ -96,4 +96,4 @@ function validateArtifacts(
 }
 
 export type { ValidationResult };
-export { validateArtifacts, validationSchema };
+export { validateArtifacts };

@@ -1,15 +1,22 @@
 # syntax=docker/dockerfile:1
 
-FROM node:26-alpine3.24
+# Dependency stage: installs production deps once, so the runtime stage copies
+# them instead of running a package install of its own.
+FROM node:26-alpine3.24 AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+# Cache mount keeps the npm cache across rebuilds without adding an image layer.
+RUN --mount=type=cache,target=/root/.npm \
+	npm ci --omit=dev --no-audit --no-fund
+
+FROM node:26-alpine3.24 AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 
-COPY package.json package-lock.json ./
-# Cache mount keeps the npm cache across rebuilds without adding an image layer.
-# Production deps only, then drop the package manager the job never uses.
-RUN --mount=type=cache,target=/root/.npm \
-	npm ci --omit=dev --no-audit --no-fund \
-	&& rm -rf /usr/local/lib/node_modules/npm \
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json ./
+# The job never shells out to npm, so drop the package manager from the image.
+RUN rm -rf /usr/local/lib/node_modules/npm \
 		/usr/local/bin/npm /usr/local/bin/npx \
 		/usr/local/lib/node_modules/corepack /usr/local/bin/corepack \
 		/opt/yarn*

@@ -10,6 +10,7 @@
 		"dev": "tsx src/index.ts",
 		"dev:valuation": "tsx src/index.ts --valuation",
 		"dev:analyst": "tsx src/index.ts --analyst",
+		"start": "tsx src/index.ts",
 		"build": "tsc",
 		"lint": "oxlint",
 		"lint:fix": "oxlint --fix",
@@ -29,6 +30,7 @@
 		"@langchain/tavily": "^1.2.0",
 		"dotenv": "^18.0.3",
 		"langchain": "^1.5.12",
+		"tsx": "^4.23.15",
 		"zod": "^4.6.5"
 	},
 	"devDependencies": {
@@ -36,7 +38,6 @@
 		"@vitest/coverage-v8": "^5.0.2",
 		"oxfmt": "^0.71.0",
 		"oxlint": "^1.86.0",
-		"tsx": "^4.23.15",
 		"typescript": "^7.0.2",
 		"vitest": "^5.0.2"
 	}

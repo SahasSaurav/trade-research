@@ -1,0 +1,30 @@
+# Build artifacts and local installs are rebuilt inside the image.
+node_modules
+dist
+coverage
+*.tsbuildinfo
+
+# Tests and tooling config are not needed by the build stage.
+test
+vitest.config.ts
+.oxfmtrc.json
+.oxlintrc.json
+
+# Version control and local cruft.
+.git
+.gitignore
+.github
+.DS_Store
+*.log
+npm-debug.log*
+
+# Secrets and environment: injected at runtime, never baked into the image.
+.env
+.env.*
+
+# Container files themselves and docs are irrelevant to the build.
+Dockerfile
+.dockerignore
+*.md
+.vscode
+.idea

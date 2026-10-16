@@ -8,7 +8,7 @@ import type { AnalystReportData } from "@src/features/analyst/schema.js";
 import { createDecisionNode } from "@src/features/decision/node.js";
 import type { DecisionData } from "@src/features/decision/schema.js";
 import { createSentimentNode } from "@src/features/sentiment/node.js";
-import type { SentimentData } from "@src/features/sentiment/schema.js";
+import type { SentimentResearchData } from "@src/features/sentiment/schema.js";
 import { createSummaryNode } from "@src/features/summary/node.js";
 import type { SummaryData } from "@src/features/summary/schema.js";
 import { createTickerValidationNode } from "@src/features/ticker/node.js";
@@ -26,7 +26,7 @@ type Route = "decisionAgent" | "analystRepair" | "summaryAgent";
 type GraphAgents = {
 	valuation: ReactAgent<AgentTypeConfig<ValuationData>>;
 	analyst: ReactAgent<AgentTypeConfig<AnalystReportData>>;
-	sentiment: ReactAgent<AgentTypeConfig<SentimentData>>;
+	sentiment: ReactAgent<AgentTypeConfig<SentimentResearchData>>;
 	decision: ReactAgent<AgentTypeConfig<DecisionData>>;
 	summary: ReactAgent<AgentTypeConfig<SummaryData>>;
 	tickerSearch?: TavilySearch;

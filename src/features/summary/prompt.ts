@@ -27,7 +27,7 @@ What the multiples mean against the stock's own history, peers, and the market. 
 Rating distribution with counts ("2 Buy, 1 Overweight, 0 Hold, 0 Sell"), average target with its range, implied upside/downside versus current price, recency, and whether the targets are credible against the valuation. Name any outlier.
 
 **Sentiment & geopolitical**
-News sentiment and score with sources; geopolitical risk level with the specific events driving it and their effect on revenue, costs, or supply chain. Skip sentiment interpretation if the data is unquantified — say the data was unavailable.
+News sentiment and score with sources; geopolitical risk level with the specific events driving it and their effect on revenue, costs, or supply chain. Check researchStatus: if a branch is failed, state that its data was unavailable — an empty sources or risks list there means missing evidence, not an absence of risk. Skip sentiment interpretation if the data is unquantified.
 
 **Risks & catalysts**
 The two or three risks that would break the thesis and the two or three catalysts that would confirm it. Each with a concrete number or event and a timeframe.

@@ -4,6 +4,7 @@ import path from "node:path";
 import { analystReportSchema } from "@src/features/analyst/schema.js";
 import { decisionSchema } from "@src/features/decision/schema.js";
 import { sentimentSchema } from "@src/features/sentiment/schema.js";
+import { geopoliticalResearchSchema } from "@src/features/sentiment/subagents/geopolitical/schema.js";
 import { newsSentimentResearchSchema } from "@src/features/sentiment/subagents/news-sentiment/schema.js";
 import { summarySchema } from "@src/features/summary/schema.js";
 import { valuationSchema } from "@src/features/valuation/schema.js";
@@ -23,7 +24,7 @@ import { z } from "zod";
  * invisible to tsc and to oxlint, and decisionSchema is the case that hides
  * it: Zod 4 emits `anyOf` for `.nullable()` there, and `anyOf` is a legal proto
  * field, so it passes under a broken converter alike. valuationSchema is the
- * one that discriminates — which is why all six schemas are checked.
+ * one that discriminates — which is why all seven schemas are checked.
  */
 
 type JsonSchemaNode = {
@@ -95,6 +96,7 @@ const agentSchemas = [
 	["decisionSchema", decisionSchema],
 	["summarySchema", summarySchema],
 	["sentimentSchema", sentimentSchema],
+	["geopoliticalResearchSchema", geopoliticalResearchSchema],
 	["newsSentimentResearchSchema", newsSentimentResearchSchema],
 ] as const;
 

@@ -5,7 +5,7 @@ const DECISION_SYSTEM_PROMPT = `Senior investment analyst, 15+ yrs. Synthesize v
 - **Flag, don't smooth over** — consensus conflicting with fair value, or sentiment contradicting fundamentals: name the conflict and explain it.
 - **Be conservative** — when uncertain, lower fair value, raise risk triggers, or hold.
 - **Label confidence** — "High" on multiple sources, "Low" on few or speculative data points.
-- **unknown ≠ neutral** — use unknown/null for sentiment score and geopolitical risk when evidence is missing. Never infer absence of risk from failed research; disclose a failed sentiment branch in keyUncertainties.
+- **unknown ≠ neutral** — use unknown/null for sentiment score and geopolitical risk when evidence is missing. Read the supplied researchStatus: when a branch is failed, treat its data as unknown — empty newsSentimentSources or geopoliticalRisks there is missing evidence, not "no risk/sentiment" — and disclose the failed branch in keyUncertainties.
 - **Good company ≠ good stock** at this price; bad company ≠ short.
 
 ## 1. Recommendation

@@ -40,16 +40,15 @@ const goodAnalyst = {
 function goodSentiment(overrides: Record<string, unknown> = {}) {
 	return {
 		ticker: "AAPL",
+		dateChecked: TODAY,
 		overallSentiment: "neutral",
 		sentimentScore: 0.1,
-		sentimentSources: [],
+		newsSentimentSources: [],
+		newsSentimentSummary: null,
 		geopoliticalRisks: [],
 		geopoliticalSummary: null,
-		researchStatus: { news: "complete", geopolitical: "complete" },
-		researchErrors: [],
-		dateChecked: TODAY,
 		sourceUrls: ["https://example.com/news"],
-		notes: null,
+		researchStatus: { news: "complete", geopolitical: "complete" },
 		...overrides,
 	};
 }
@@ -241,9 +240,8 @@ describe("validateArtifacts", () => {
 				goodAnalyst,
 				goodSentiment({
 					researchStatus: { news: "complete", geopolitical: "failed" },
-					researchErrors: ["geopolitical research failed"],
-					geopoliticalRisks: null,
-					geopoliticalSummary: "Geopolitical research failed.",
+					geopoliticalRisks: [],
+					geopoliticalSummary: null,
 				}),
 			);
 

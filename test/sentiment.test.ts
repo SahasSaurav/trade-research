@@ -1,11 +1,15 @@
 import { createSentimentNode } from "@src/features/sentiment/node.js";
-import type { SentimentData } from "@src/features/sentiment/schema.js";
+import type {
+	SentimentData,
+	SentimentResearchData,
+} from "@src/features/sentiment/schema.js";
 import { scoreSentimentSources } from "@src/features/sentiment/score.js";
 import type { GraphState } from "@src/workflows/state.js";
 import type { AgentTypeConfig, ReactAgent } from "langchain";
 import { describe, expect, it } from "vitest";
 
-type SentimentSources = SentimentData["sentimentSources"];
+type NewsSources = SentimentData["newsSentimentSources"];
+type GeopoliticalEvent = SentimentData["geopoliticalRisks"][number];
 
 const TODAY = new Date().toISOString().slice(0, 10);
 
@@ -13,30 +17,45 @@ function daysAgo(days: number): string {
 	return new Date(Date.now() - days * 86_400_000).toISOString();
 }
 
-function source(overrides: Partial<SentimentSources[number]> = {}) {
+function source(overrides: Partial<NewsSources[number]> = {}) {
 	return {
 		source: "Reuters",
 		sentiment: "positive" as const,
-		evidenceStrength: "high" as const,
+		confidence: "high" as const,
 		date: daysAgo(1),
 		summary: "s",
+		sourceUrl: "https://example.com/news",
 		...overrides,
 	};
 }
 
-function sentiment(overrides: Partial<SentimentData> = {}): SentimentData {
+function event(overrides: Partial<GeopoliticalEvent> = {}) {
 	return {
-		ticker: "AAPL",
-		overallSentiment: "neutral",
-		sentimentScore: 0,
-		sentimentSources: [],
+		event: "tariff",
+		affectedRegion: "US",
+		eventDate: TODAY,
+		sourceUrl: "https://example.com/geo",
+		publisher: "Reuters",
+		publicationDate: TODAY,
+		companyConnection: "suppliers" as const,
+		impact: "negative" as const,
+		timeHorizon: "short_term" as const,
+		confidence: "medium" as const,
+		confidenceEvidence: "e",
+		status: "confirmed" as const,
+		...overrides,
+	};
+}
+
+function research(
+	overrides: Partial<SentimentResearchData> = {},
+): SentimentResearchData {
+	return {
+		newsSentimentSources: [],
+		newsSentimentSummary: null,
 		geopoliticalRisks: [],
 		geopoliticalSummary: null,
 		researchStatus: { news: "complete", geopolitical: "complete" },
-		researchErrors: [],
-		dateChecked: TODAY,
-		sourceUrls: [],
-		notes: null,
 		...overrides,
 	};
 }
@@ -71,8 +90,8 @@ describe("scoreSentimentSources", () => {
 
 	it("weights evidence strength, so a low-confidence source moves the score less", () => {
 		const result = scoreSentimentSources([
-			source({ sentiment: "positive", evidenceStrength: "high" }),
-			source({ sentiment: "negative", evidenceStrength: "low" }),
+			source({ sentiment: "positive", confidence: "high" }),
+			source({ sentiment: "negative", confidence: "low" }),
 		]);
 
 		// weights 1 and 0.35 -> (1 - 0.35) / 1.35 = 0.4815 -> 0.48
@@ -139,8 +158,8 @@ describe("scoreSentimentSources", () => {
 		"scores $pos vs $neg as $score, labelled $label",
 		({ pos, neg, score, label }) => {
 			const result = scoreSentimentSources([
-				source({ sentiment: "positive", evidenceStrength: pos }),
-				source({ sentiment: "negative", evidenceStrength: neg }),
+				source({ sentiment: "positive", confidence: pos }),
+				source({ sentiment: "negative", confidence: neg }),
 			]);
 
 			expect(result.sentimentScore).toBe(score);
@@ -169,31 +188,35 @@ describe("scoreSentimentSources", () => {
 });
 
 describe("sentiment node", () => {
-	it("recomputes the score from the sources, ignoring the model's number", async () => {
+	it("stamps the ticker and date and recomputes the score from the sources", async () => {
 		const node = createSentimentNode(
 			agentReturning(
-				sentiment({
-					sentimentSources: [source({ sentiment: "positive" })],
-					sentimentScore: -0.9,
-					overallSentiment: "negative",
+				research({
+					newsSentimentSources: [source({ sentiment: "positive" })],
 				}),
 			),
 		);
 
 		const update = await node(state());
 
+		expect(update.sentiment?.ticker).toBe("AAPL");
+		expect(update.sentiment?.dateChecked).toBe(TODAY);
 		expect(update.sentiment?.sentimentScore).toBe(1);
 		expect(update.sentiment?.overallSentiment).toBe("positive");
 	});
 
-	it("dedupes the source URLs the orchestrator returns", async () => {
+	it("derives the source URLs from the news sources and geopolitical events", async () => {
 		const node = createSentimentNode(
 			agentReturning(
-				sentiment({
-					sourceUrls: [
-						"https://example.com/a",
-						"https://example.com/a",
-						"https://example.com/b",
+				research({
+					newsSentimentSources: [
+						source({ sourceUrl: "https://example.com/a" }),
+						source({ sourceUrl: "https://example.com/a" }),
+						source({ sourceUrl: "https://example.com/b" }),
+					],
+					geopoliticalRisks: [
+						event({ sourceUrl: "https://example.com/b" }),
+						event({ sourceUrl: "https://example.com/c" }),
 					],
 				}),
 			),
@@ -204,6 +227,7 @@ describe("sentiment node", () => {
 		expect(update.sentiment?.sourceUrls).toEqual([
 			"https://example.com/a",
 			"https://example.com/b",
+			"https://example.com/c",
 		]);
 	});
 
@@ -214,7 +238,7 @@ describe("sentiment node", () => {
 				// reports it without retrying.
 				throw Object.assign(new Error("boom"), { status: 400 });
 			},
-		} as unknown as ReactAgent<AgentTypeConfig<SentimentData>>;
+		} as unknown as ReactAgent<AgentTypeConfig<SentimentResearchData>>;
 		const node = createSentimentNode(agent);
 
 		const update = await node(state());
@@ -225,6 +249,5 @@ describe("sentiment node", () => {
 			news: "failed",
 			geopolitical: "failed",
 		});
-		expect(update.sentiment?.researchErrors?.[0]).toMatch(/boom/);
 	});
 });

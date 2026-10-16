@@ -10,10 +10,10 @@ Cover recent, credible, company-specific news: earnings and guidance, analyst es
 - Base the overall sentiment call on the evidence and its recency and credibility.
 
 ## Fields
-source (publisher or platform) | sentiment (positive, neutral, negative) | evidenceStrength (high, medium, low — from credibility, specificity, corroboration) | date (publication or event date, YYYY-MM-DD when available) | summary (concise description of the evidence and its sentiment) | sourceUrl (exact URL consulted).
+**ticker** — the company symbol. **newsSentimentSources** — one entry per source: source (publisher or platform) | sentiment (positive, neutral, negative) | confidence (high, medium, low — from credibility, specificity, corroboration) | date (publication or event date, YYYY-MM-DD when available) | summary (concise description of the evidence and its sentiment) | sourceUrl (exact URL consulted). **newsSentimentSummary** — a concise overall read of current news sentiment, distinct from the per-source summaries. **sourceUrls** — every URL you cited.
 
 ## Method
-Search the company, its industry, and key geographic markets; identify sentiment drivers (earnings misses, product launches, competitive wins/losses, analyst upgrades).`;
+Search the company, its industry, and key geographic markets; identify sentiment drivers (earnings misses, product launches, competitive wins/losses, analyst upgrades). Then write a short newsSentimentSummary that reads the coverage as a whole.`;
 
 const NEWS_SENTIMENT_SUBAGENT_DESCRIPTION =
 	"Recent company-specific news and investor sentiment for a ticker: earnings and guidance, analyst estimate or rating changes, product launches, and competitive developments. Returns dated, cited sentiment sources.";

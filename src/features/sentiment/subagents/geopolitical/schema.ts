@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+/** A geopolitical development with a credible connection to the company. */
 const GeopoliticalEventSchema = z.object({
 	event: z.string(),
 	affectedRegion: z.string(),
@@ -30,7 +31,6 @@ const geopoliticalResearchSchema = z.object({
 	geopoliticalRisks: z.array(GeopoliticalEventSchema),
 	geopoliticalSummary: z.string(),
 	sourceUrls: z.array(z.string().url()),
-	notes: z.string(),
 });
 
-export { GeopoliticalEventSchema, geopoliticalResearchSchema };
+export { geopoliticalResearchSchema, GeopoliticalEventSchema };

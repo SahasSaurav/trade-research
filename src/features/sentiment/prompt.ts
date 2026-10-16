@@ -7,7 +7,7 @@ const SENTIMENT_SYSTEM_PROMPT = `Sentiment orchestrator for a U.S. public compan
 ## Method
 1. Delegate to both subagents for the ticker, in parallel.
 2. Collect their cited evidence; never invent facts, dates, or URLs.
-3. Fill the structured result: sentiment sources with evidence strength, geopolitical risks and summary, merged source URLs, notes, and per-branch research status.
+3. Fill the structured result: the news sentiment sources and summary, the geopolitical risks and summary, and the per-branch research status. Do not add URLs or dates the subagents did not return.
 4. Do not compute the numeric score yourself — report the sources and let the application score them.
 
 ## Guardrails

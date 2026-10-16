@@ -1,30 +1,42 @@
 import { SENTIMENT_USER_MESSAGE } from "@src/features/sentiment/prompt.js";
 import { runResearch } from "@src/features/sentiment/research.js";
-import type { SentimentData } from "@src/features/sentiment/schema.js";
-import { sentimentSchema } from "@src/features/sentiment/schema.js";
+import type {
+	SentimentData,
+	SentimentResearchData,
+} from "@src/features/sentiment/schema.js";
+import { sentimentResearchSchema } from "@src/features/sentiment/schema.js";
 import { scoreSentimentSources } from "@src/features/sentiment/score.js";
 import type { GraphState } from "@src/workflows/state.js";
 import type { AgentTypeConfig, ReactAgent } from "langchain";
 
-/** A total failure of the orchestrator, with no per-branch detail to keep. */
-function failedSentiment(ticker: string, error: string): SentimentData {
+/** A total failure of the orchestrator: an empty artifact, marked failed. */
+function failedSentiment(ticker: string): SentimentData {
 	return {
 		ticker,
+		dateChecked: new Date().toISOString().slice(0, 10),
 		overallSentiment: "unknown",
 		sentimentScore: null,
-		sentimentSources: [],
+		newsSentimentSources: [],
+		newsSentimentSummary: null,
 		geopoliticalRisks: [],
-		geopoliticalSummary: "Sentiment research failed.",
-		researchStatus: { news: "failed", geopolitical: "failed" },
-		researchErrors: [error],
-		dateChecked: new Date().toISOString().slice(0, 10),
+		geopoliticalSummary: null,
 		sourceUrls: [],
-		notes: null,
+		researchStatus: { news: "failed", geopolitical: "failed" },
 	};
 }
 
+/** Every cited URL, from both the news sources and the geopolitical events. */
+function sourceUrlsOf(research: SentimentResearchData): string[] {
+	return [
+		...new Set([
+			...research.newsSentimentSources.map((source) => source.sourceUrl),
+			...research.geopoliticalRisks.map((event) => event.sourceUrl),
+		]),
+	];
+}
+
 function createSentimentNode(
-	agent: ReactAgent<AgentTypeConfig<SentimentData>>,
+	agent: ReactAgent<AgentTypeConfig<SentimentResearchData>>,
 	researchAttempts?: number,
 ) {
 	return async (state: GraphState) => {
@@ -40,21 +52,34 @@ function createSentimentNode(
 						],
 					})
 				).structuredResponse,
-			sentimentSchema,
+			sentimentResearchSchema,
 			researchAttempts,
 		);
 
 		if (outcome.error !== null) {
-			return { sentiment: failedSentiment(state.ticker, outcome.error) };
+			console.error(`sentiment research failed: ${outcome.error}`);
+			return { sentiment: failedSentiment(state.ticker) };
 		}
 
-		// The model picks the sources; the score is recomputed here so identical
-		// sources always score identically regardless of what the model emitted.
+		const research = outcome.data;
+
+		// Log one source at a time so a long sentiment run shows the evidence it
+		// collected as it is merged, not just as one opaque blob at the end.
+		for (const source of research.newsSentimentSources) {
+			console.log(
+				`sentiment source: ${source.source} — ${source.sentiment} (${source.confidence}) ${source.date}`,
+			);
+		}
+
+		// The model collects the evidence; the node stamps the identity, the
+		// date, the score and the consolidated URLs so none can be invented.
 		return {
 			sentiment: {
-				...outcome.data,
-				...scoreSentimentSources(outcome.data.sentimentSources),
-				sourceUrls: [...new Set(outcome.data.sourceUrls)],
+				...research,
+				ticker: state.ticker,
+				dateChecked: new Date().toISOString().slice(0, 10),
+				...scoreSentimentSources(research.newsSentimentSources),
+				sourceUrls: sourceUrlsOf(research),
 			},
 		};
 	};

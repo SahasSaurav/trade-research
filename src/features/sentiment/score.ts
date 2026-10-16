@@ -1,10 +1,10 @@
 const SENTIMENT_VALUES = { positive: 1, neutral: 0, negative: -1 } as const;
 
-const EVIDENCE_WEIGHTS = { high: 1, medium: 0.65, low: 0.35 } as const;
+const CONFIDENCE_WEIGHTS = { high: 1, medium: 0.65, low: 0.35 } as const;
 
 type SentimentSource = {
 	sentiment: keyof typeof SENTIMENT_VALUES;
-	evidenceStrength: keyof typeof EVIDENCE_WEIGHTS;
+	confidence: keyof typeof CONFIDENCE_WEIGHTS;
 	date: string;
 };
 
@@ -31,13 +31,13 @@ function recencyWeight(date: string): number {
 /**
  * The model selects and cites the sources; this decides the number, so the
  * same sources always score the same however the orchestrator phrased its
- * output. Evidence strength sets the base weight, recency decays it.
+ * output. Confidence sets the base weight, recency decays it.
  */
 function scoreSentimentSources(sources: SentimentSource[]): SentimentScore {
 	const { weightedScore, totalWeight } = sources.reduce(
 		(total, source) => {
 			const weight =
-				EVIDENCE_WEIGHTS[source.evidenceStrength] * recencyWeight(source.date);
+				CONFIDENCE_WEIGHTS[source.confidence] * recencyWeight(source.date);
 			return {
 				weightedScore:
 					total.weightedScore + SENTIMENT_VALUES[source.sentiment] * weight,

@@ -41,18 +41,14 @@ const goodValuation = {
 
 const decision = { recommendation: "hold" };
 const summary = { ticker: "AAPL", dateChecked: TODAY, summary: "final text" };
+// The sentiment agent returns research; the node stamps the ticker, date,
+// score and sourceUrls.
 const goodSentiment = {
-	ticker: "AAPL",
-	overallSentiment: "neutral",
-	sentimentScore: 0,
-	sentimentSources: [],
+	newsSentimentSources: [],
+	newsSentimentSummary: null,
 	geopoliticalRisks: [],
 	geopoliticalSummary: "none",
 	researchStatus: { news: "complete", geopolitical: "complete" },
-	researchErrors: [],
-	dateChecked: TODAY,
-	sourceUrls: [],
-	notes: null,
 };
 
 type Stub = { invokeCount: number; responses: unknown[] };

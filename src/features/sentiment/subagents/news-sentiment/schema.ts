@@ -1,19 +1,20 @@
 import { z } from "zod";
 
-const newsSentimentResearchSchema = z.object({
-	ticker: z.string(),
-	sentimentSources: z.array(
-		z.object({
-			source: z.string(),
-			sentiment: z.enum(["positive", "neutral", "negative"]),
-			evidenceStrength: z.enum(["high", "medium", "low"]),
-			date: z.string(),
-			summary: z.string(),
-			sourceUrl: z.string().url(),
-		}),
-	),
-	sourceUrls: z.array(z.string().url()),
-	notes: z.string(),
+/** One dated, cited piece of news sentiment evidence. */
+const NewsSentimentSourceSchema = z.object({
+	source: z.string(),
+	sentiment: z.enum(["positive", "neutral", "negative"]),
+	confidence: z.enum(["high", "medium", "low"]),
+	date: z.string(),
+	summary: z.string(),
+	sourceUrl: z.string().url(),
 });
 
-export { newsSentimentResearchSchema };
+const newsSentimentResearchSchema = z.object({
+	ticker: z.string(),
+	newsSentimentSources: z.array(NewsSentimentSourceSchema),
+	newsSentimentSummary: z.string(),
+	sourceUrls: z.array(z.string().url()),
+});
+
+export { newsSentimentResearchSchema, NewsSentimentSourceSchema };

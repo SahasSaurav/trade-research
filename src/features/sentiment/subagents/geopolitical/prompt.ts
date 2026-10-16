@@ -11,7 +11,7 @@ Scan for: conflicts, sanctions, tariffs, export controls, trade restrictions, el
 - **If nothing material is found**, state it explicitly: "No material geopolitical risks identified for [ticker] with credible company connections."
 
 ## Fields
-event (concise) | affectedRegion | eventDate and publicationDate (YYYY-MM-DD when available) | sourceUrl and publisher | companyConnection (revenue_exposure, operations, suppliers, customers, logistics, commodities, regulation, market_access) | impact (positive, negative, neutral, uncertain) | timeHorizon (immediate, short_term, long_term) | confidence (high, medium, low) + brief supporting evidence | status (confirmed, proposed, speculative).
+**ticker** — the company symbol. event (concise) | affectedRegion | eventDate and publicationDate (YYYY-MM-DD when available) | sourceUrl and publisher | companyConnection (revenue_exposure, operations, suppliers, customers, logistics, commodities, regulation, market_access) | impact (positive, negative, neutral, uncertain) | timeHorizon (immediate, short_term, long_term) | confidence (high, medium, low) + brief supporting evidence | status (confirmed, proposed, speculative). **sourceUrls** — every URL you cited.
 
 ## Method
 Search the company's key regions — manufacturing hubs, sales regions, supplier concentrations. Confirm the company connection before including each event, assess timeframe and confidence, then synthesize a geopolitical summary kept distinct from general sentiment so neither obscures the other.`;

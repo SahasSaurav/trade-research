@@ -58,16 +58,15 @@ const goodValuation = {
 // object widens to `string` and fails to satisfy the sentiment schema.
 const goodSentiment: SentimentData = {
 	ticker: "AAPL",
+	dateChecked: TODAY,
 	overallSentiment: "neutral",
 	sentimentScore: 0.1,
-	sentimentSources: [],
+	newsSentimentSources: [],
+	newsSentimentSummary: null,
 	geopoliticalRisks: [],
 	geopoliticalSummary: null,
-	researchStatus: { news: "complete", geopolitical: "complete" },
-	researchErrors: [],
-	dateChecked: TODAY,
 	sourceUrls: ["https://example.com/news"],
-	notes: null,
+	researchStatus: { news: "complete", geopolitical: "complete" },
 };
 
 // Annotated so the string literals keep their enum types; see goodSentiment.

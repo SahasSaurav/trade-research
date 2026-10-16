@@ -15,7 +15,8 @@ agent catalogue are in [AGENTS.md](AGENTS.md); system design in
 - **Tests:** vitest (`npm test`).
 - **Commits:** Conventional Commits — `feat`, `fix`, `refactor`, `chore`, `perf`,
   `build`, `test`.
-- **Docker:** `node:26-alpine`, non-root `node` user, secrets via env only.
+- **Docker:** `node:26-alpine`, multi-stage, non-root `node` user, secrets via env
+  only.
 
 ## Architecture
 
@@ -23,9 +24,12 @@ agent catalogue are in [AGENTS.md](AGENTS.md); system design in
 - Agents return **structured output** via `responseFormat: toolStrategy(schema)`;
   nodes read `result.structuredResponse`.
 - Orchestration stays in the explicit `StateGraph` — keep it deterministic and
-  testable.
-- One shared agent contract (`ReactAgent`); nodes must not care which
-  implementation they hold.
+  testable. Deep agents plan inside a node; they never own the graph.
+- One shared agent contract (`AgentRunnable<T>`, `src/workflows/agent.ts`); nodes
+  must not care which implementation they hold. `createAgent` and `createDeepAgent`
+  both satisfy it without a widened `any`.
+- **Deep agents only where they earn it.** Valuation, analyst, and the sentiment
+  orchestrator use `createDeepAgent`; decision and summary stay `createAgent`.
 - The model-call budget lives in `src/workflows/agent-guard.ts`; size budgets from
   a real trace, not a round number.
 - Configuration goes through `loadConfig`; never bake secrets or `.env`.
@@ -39,8 +43,9 @@ agent catalogue are in [AGENTS.md](AGENTS.md); system design in
 ## Determinism
 
 - Compute numbers in code, not in prompts: valuation multiples
-  (`compute_valuation_multiples`) and sentiment scoring (the merge node) are
-  deterministic on purpose.
+  (`compute_valuation_multiples`) and sentiment scoring (`scoreSentimentSources`)
+  are deterministic on purpose. The sentiment orchestrator may collect sources, but
+  it never sets the score.
 - Render the report from structured artifacts, never from model prose.
 
 ## Failure handling
@@ -49,12 +54,15 @@ agent catalogue are in [AGENTS.md](AGENTS.md); system design in
   `insufficient_data` rather than throwing and taking down sibling branches.
 - Only retry **transient** provider errors (see `runResearch`).
 
-## Deep agents (if adopted)
+## Deep agents
 
-- Keep **decision** and **summary** as plain `createAgent`; they gain nothing.
-- Convert only research agents, and only on a **frontier model** — small/local
-  models are net-negative.
-- Introduce a shared `ResearchAgent` interface + node adapter first; the graph
-  stays unaware.
-- Measure depth-vs-baseline (quality, cost, latency, guard trips) and require a win
-  before proceeding. Keep each step independently revertible.
+- **Adopted for research agents:** valuation, analyst, and the sentiment
+  orchestrator use `createDeepAgent`. **decision** and **summary** stay plain
+  `createAgent`; they gain nothing.
+- Native subagents: the sentiment orchestrator declares `subagents: [...]` and
+  dispatches through the `task` tool instead of a hand-rolled subgraph.
+- Determinism is preserved by putting the model on source _collection_ and code on
+  the _number_ (`scoreSentimentSources`).
+- Only trust the deep-agent branches on a **frontier model**; small/local models
+  are net-negative. Every agent still carries `agentGuardMiddleware()`.
+- Land changes **one agent per commit** and keep each independently revertible.

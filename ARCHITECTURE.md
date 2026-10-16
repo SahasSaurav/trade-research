@@ -2,9 +2,9 @@
 
 System design and component boundaries. One explicit
 [LangGraph](https://langchain-ai.github.io/langgraphjs/) `StateGraph` orchestrates
-six ReAct agents and two deterministic nodes. Project instructions and the agent
-catalogue live in [AGENTS.md](AGENTS.md); conventions in
-[prefrence.md](prefrence.md).
+six agents — three deep agents and three plain `createAgent` — plus two
+deterministic nodes. Project instructions and the agent catalogue live in
+[AGENTS.md](AGENTS.md); conventions in [prefrence.md](prefrence.md).
 
 ## High-level flow
 
@@ -17,7 +17,8 @@ tickerCheck ──(invalid_ticker)───────────────�
   ├───────────────┬────────────────────┐
   ▼               ▼                    ▼
 valuationAgent  analystAgent      sentimentAgent      ← run in parallel
-  │               │                    │                 (sentiment is a subgraph)
+  │               │                    │                 (sentiment = deep agent
+  │               │                    │                  with native subagents)
   └───────────────┴────────────────────┘
                   │
                   ▼
@@ -27,10 +28,10 @@ valuationAgent  analystAgent      sentimentAgent      ← run in parallel
         │ analystIssues & budget left              │ pass
         ▼                                          ▼
    analystRepair ──► dataValidation          decisionAgent
-                                                     │
-                                          (fail / no pass)│
-                                                     ▼
-                                                summaryAgent ──► END
+                                                      │
+                                           (fail / no pass)│
+                                                      ▼
+                                                 summaryAgent ──► END
 ```
 
 Edges (from `src/workflows/graph.ts`):
@@ -70,17 +71,18 @@ Node names deliberately differ from channel names (`tickerCheck` vs
 
 ## Component boundaries
 
-| Component          | Module                         | Responsibility                        | Depends on          |
-| ------------------ | ------------------------------ | ------------------------------------- | ------------------- |
-| CLI entry          | `src/index.ts`                 | Stream the graph, render the report   | workflow, report    |
-| Config             | `src/config/config.ts`         | Validate env into a typed config      | zod                 |
-| Graph              | `src/workflows/graph.ts`       | Nodes + edges, routing, node timeouts | nodes, state        |
-| Wiring             | `src/workflows/workflow.ts`    | Build model, tools, agents; assemble  | providers, features |
-| State              | `src/workflows/state.ts`       | Channel definitions                   | feature schemas     |
-| Guard              | `src/workflows/agent-guard.ts` | Model-call budget middleware          | langchain           |
-| Features           | `src/features/*/`              | One agent/node/tool per capability    | langchain, schemas  |
-| Sentiment subgraph | `src/features/sentiment/`      | Fan-out + weighted merge              | subagents           |
-| Report             | `src/report/render.ts`         | Render artifacts to terminal          | —                   |
+| Component              | Module                         | Responsibility                                       | Depends on          |
+| ---------------------- | ------------------------------ | ---------------------------------------------------- | ------------------- |
+| CLI entry              | `src/index.ts`                 | Stream the graph, render the report                  | workflow, report    |
+| Config                 | `src/config/config.ts`         | Validate env into a typed config                     | zod                 |
+| Graph                  | `src/workflows/graph.ts`       | Nodes + edges, routing, node timeouts                | nodes, state        |
+| Wiring                 | `src/workflows/workflow.ts`    | Build model, tools, agents; assemble                 | providers, features |
+| State                  | `src/workflows/state.ts`       | Channel definitions                                  | feature schemas     |
+| Guard                  | `src/workflows/agent-guard.ts` | Model-call budget middleware                         | langchain           |
+| Agent contract         | `src/workflows/agent.ts`       | Structural `AgentRunnable<T>` the graph depends on   | —                   |
+| Features               | `src/features/*/`              | One agent/node/tool per capability                   | langchain, schemas  |
+| Sentiment orchestrator | `src/features/sentiment/`      | Deep agent + native subagents; deterministic rescore | subagents           |
+| Report                 | `src/report/render.ts`         | Render artifacts to terminal                         | —                   |
 
 Each feature is self-contained: `agent.ts` (construction), `node.ts` (graph node),
 `prompt.ts`, `schema.ts`, optional `tool.ts`. The graph imports only nodes and
@@ -88,18 +90,21 @@ state, never prompt/schema internals.
 
 ## Agents and tools
 
-All six agents are built with `createAgent` from `langchain` and return
-**structured output** via `responseFormat: toolStrategy(schema)`. Nodes read
-`result.structuredResponse` and write it to a state channel.
+Every agent returns **structured output** via
+`responseFormat: toolStrategy(schema)`, so nodes read `result.structuredResponse`
+and write it to a state channel. Valuation, analyst, and the sentiment orchestrator
+are **deep agents** (`createDeepAgent`, `deepagents`); decision and summary use
+`createAgent` (`langchain`).
 
-| Agent            | Tools                                            | Output                  |
-| ---------------- | ------------------------------------------------ | ----------------------- |
-| `valuation`      | reference search + `compute_valuation_multiples` | `valuationSchema`       |
-| `analyst`        | reference search                                 | analyst report          |
-| `news-sentiment` | news search                                      | news sentiment research |
-| `geopolitical`   | news search                                      | geopolitical research   |
-| `decision`       | none                                             | `decisionSchema`        |
-| `summary`        | none                                             | summary prose           |
+| Agent                         | Built with    | Tools                                            | Output                  |
+| ----------------------------- | ------------- | ------------------------------------------------ | ----------------------- |
+| `valuation`                   | deep agent    | reference search + `compute_valuation_multiples` | `valuationSchema`       |
+| `analyst`                     | deep agent    | reference search                                 | analyst report          |
+| `sentiment` (orchestrator)    | deep agent    | none — `task` subagents                          | `sentimentSchema`       |
+| ↳ `news-sentiment` (subagent) | `createAgent` | news search                                      | news sentiment research |
+| ↳ `geopolitical` (subagent)   | `createAgent` | news search                                      | geopolitical research   |
+| `decision`                    | `createAgent` | none                                             | `decisionSchema`        |
+| `summary`                     | `createAgent` | none                                             | summary prose           |
 
 Two Tavily tools (`src/workflows/workflow.ts`) because the filters differ:
 
@@ -115,14 +120,18 @@ swallows the error, causing a wasted loop.
 `compute_valuation_multiples` (`src/features/valuation/tool.ts`) computes PE/PEG
 deterministically, so the model never divides in-head.
 
-## Sentiment subgraph
+## Sentiment orchestrator
 
-`sentimentAgent` is itself a compiled `StateGraph`
-(`src/features/sentiment/workflow/graph.ts`): `newsSentimentSubagent` and
-`geopoliticalSubagent` fan out from `START`, then `mergeSentimentResearch`
-combines them.
+`sentimentAgent` (`src/features/sentiment/agent.ts`) is a deep agent whose
+**native subagents** are `news_sentiment` and `geopolitical` (declared via
+`subagents: [...]`, each a `CompiledSubAgent` wrapping a structured agent). The
+orchestrator dispatches them through the `task` tool and returns one
+`sentimentSchema` artifact.
 
-The merge is **deterministic and weighted**, not model-driven:
+The **score stays deterministic**: the model collects the cited sources, code
+decides the number. `createSentimentNode` (`src/features/sentiment/node.ts`)
+recomputes the score from the returned sources with `scoreSentimentSources`
+(`src/features/sentiment/score.ts`):
 
 - sentiment value: `positive 1 / neutral 0 / negative -1`
 - evidence weight: `high 1 / medium 0.65 / low 0.35`
@@ -130,10 +139,11 @@ The merge is **deterministic and weighted**, not model-driven:
 - score = weighted average, `null` when no weight; thresholds `±0.15` for
   `positive` / `negative`, otherwise `neutral`
 
-Each subagent is invoked through `runResearch`
-(`src/features/sentiment/workflow/research.ts`), which retries **only transient
-provider errors** (408/429/5xx, network codes) with exponential backoff, and
-validates the result against its zod schema.
+The node also dedupes `sourceUrls`, and on a hard orchestrator failure writes a
+failed-sentiment sentinel (`researchStatus` both `failed`) so the run degrades
+rather than aborting. `runResearch` (`src/features/sentiment/research.ts`) retries
+**only transient provider errors** (408/429/5xx, network codes) with exponential
+backoff and validates the result against the zod schema.
 
 ## Guard: model-call budget
 
@@ -146,6 +156,10 @@ aborting sibling branches that already succeeded. `exitBehavior: "end"` makes th
 agent return what it has, the node writes `undefined`, validation reports
 `insufficient_data`, and the run still produces a summary. The recursion limit
 (`16 × 4 supersteps + 10 = 74`) is derived so the call limit trips first.
+
+Every agent — deep or plain, parent or subagent — carries this middleware. Deep
+agents spend extra calls on planning and `task` delegation, so `MAX_MODEL_CALLS` may
+need raising (per agent) if a deep branch trips it.
 
 ## Configuration and providers
 
@@ -176,14 +190,14 @@ the recommendation.
   tsconfig `@src/*` aliases at runtime.
 - **`tsc` build:** emits `dist/` but leaves `@src/*` specifiers that Node cannot
   resolve — so `dist/` is _not_ the run path.
-- **Docker:** single-stage `node:26-alpine`, prod deps only, non-root, runs `tsx`
-  from source. No filesystem state (the checkpointer is an in-memory `MemorySaver`),
-  no ports.
+- **Docker:** multi-stage `node:26-alpine` (deps + runtime), prod deps only,
+  non-root, runs `tsx` from source. No filesystem state (the checkpointer is an
+  in-memory `MemorySaver`), no ports.
 
 ## Design decisions
 
-- **Explicit graph over dynamic orchestration.** Control flow is fixed and
-  testable; a deep agent's runtime planning would trade that for variance. See
+- **Explicit graph over dynamic orchestration.** Cross-agent control flow is fixed
+  and testable; deep agents plan _inside_ a node, they never own the graph. See
   [AGENTS.md](AGENTS.md).
 - **Structured output is the contract.** Agents return schemas; nodes forward
   `structuredResponse`. Nothing downstream parses prose.
@@ -194,7 +208,7 @@ the recommendation.
 
 ## Tests
 
-`test/` covers node contracts, tools, validation, the sentiment merge, graph
-wiring, model config, and report rendering (`nodes`, `search-tool`, `validate`,
-`research`, `ticker`, `valuation-tool`, `gemini-schema`, `agent-guard`,
-`sentiment-merge`, `model-config`, `config`, `report`, `workflow-graph`).
+`test/` covers node contracts, tools, validation, the sentiment scorer and node,
+graph wiring, model config, and report rendering (`nodes`, `search-tool`,
+`validate`, `research`, `ticker`, `valuation-tool`, `gemini-schema`, `agent-guard`,
+`sentiment`, `model-config`, `config`, `report`, `workflow-graph`).

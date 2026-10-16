@@ -6,7 +6,8 @@ rendered as a terminal report.
 
 Six agents run as nodes in one explicit graph: three research branches fan out in
 parallel (valuation, sell-side analyst, sentiment), a validation node gates them,
-and a decision agent synthesises the result.
+and a decision agent synthesises the result. Valuation and analyst are deep agents,
+and sentiment is a deep orchestrator with native subagents.
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — system design and component boundaries
 - [AGENTS.md](AGENTS.md) — project instructions and the agents
@@ -78,9 +79,9 @@ docker run --rm \
   trade-research
 ```
 
-Single-stage `node:26-alpine` image, non-root, runs `tsx` from source. It writes
-nothing to disk, so there is no volume and no port. Run it as a scheduled job
-(Cloud Run Job / ECS RunTask / K8s Job / cron).
+Multi-stage `node:26-alpine` image (deps + runtime), non-root, runs `tsx` from
+source. It writes nothing to disk, so there is no volume and no port. Run it as a
+scheduled job (Cloud Run Job / ECS RunTask / K8s Job / cron).
 
 ## Limitations
 
@@ -88,7 +89,9 @@ nothing to disk, so there is no volume and no port. Run it as a scheduled job
 - **Default Ollama model is host-specific** (`gemma4:12b-mlx` is Apple-Silicon /
   MLX) and won't run in a Linux container; use a hosted provider in Docker.
 - All provider keys must be set (see the gotcha above).
-- Deep agents are **not** adopted — see [AGENTS.md](AGENTS.md).
+- Deep agents are used for **valuation, analyst, and the sentiment orchestrator**
+  only; decision and summary stay `createAgent`. The benefit is gated on a frontier
+  model — see [AGENTS.md](AGENTS.md).
 
 ## Project layout
 
@@ -101,12 +104,13 @@ src/
     graph.ts                   the StateGraph (nodes + edges)
     workflow.ts                builds model, tools, agents
     state.ts                   WorkflowState channels
+    agent.ts                   shared AgentRunnable contract
     agent-guard.ts             model-call budget middleware
   features/
     ticker/                    ticker validation node
-    valuation/                 agent + compute_valuation_multiples tool
-    analyst/                   agent + repair node
-    sentiment/                 agent + subgraph + subagents
+    valuation/                 deep agent + compute_valuation_multiples tool
+    analyst/                   deep agent + repair node
+    sentiment/                 deep orchestrator + native subagents + scorer
     validation/                gates artifacts, reports issues
     decision/                  structured recommendation agent
     summary/                   prose analyst-note agent

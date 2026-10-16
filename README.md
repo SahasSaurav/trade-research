@@ -136,12 +136,15 @@ Every research agent splits its instructions in two:
 The skill is read from disk at runtime, through a read-only filesystem confined to
 that agent's own skill folder, so it costs nothing until the agent reads it.
 
-| Agent                         | Skill                    |
-| ----------------------------- | ------------------------ |
-| valuation (deep)              | `skills/valuation/`      |
-| analyst (deep)                | `skills/analyst/`        |
-| sentiment orchestrator (deep) | `skills/sentiment/`      |
-| ↳ news_sentiment subagent     | `skills/news-sentiment/` |
-| ↳ geopolitical subagent       | `skills/geopolitical/`   |
+| Agent                     | Skill                    |
+| ------------------------- | ------------------------ |
+| valuation (deep)          | `skills/valuation/`      |
+| analyst (deep)            | `skills/analyst/`        |
+| ↳ news_sentiment subagent | `skills/news-sentiment/` |
+| ↳ geopolitical subagent   | `skills/geopolitical/`   |
 
 Each folder name must match the `name` in its frontmatter.
+
+The sentiment orchestrator is the exception: it only delegates, so it carries no
+skill — its prompt is the whole contract, and the how-to stays with the two
+subagents that do the research.

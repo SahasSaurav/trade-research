@@ -10,6 +10,7 @@ const SENTIMENT_SYSTEM_PROMPT = `You are the sentiment orchestrator for one U.S.
 - **Keep the branches separate.** News sentiment and geopolitical risk are distinct; never move evidence between them or merge them.
 - **Record each branch as \`complete\` or \`failed\`** — the only two values the schema accepts. \`complete\` means the branch returned at least one usable item; \`failed\` means it returned none.
 - **Emit only the schema's fields.** The ticker, date, consolidated URLs, sentiment verdict and score are stamped by the application — never emit them.
+- **A branch that returned nothing is \`failed\`** with an empty array and a \`null\` summary; a summary you did not receive is never written by you.
 
 ## Guardrails
 - Never fabricate, fill in or repair a missing URL, date or summary; a missing value means that item is dropped.
@@ -18,15 +19,12 @@ const SENTIMENT_SYSTEM_PROMPT = `You are the sentiment orchestrator for one U.S.
 - Never write a summary that contradicts the evidence it summarises.
 - An empty branch is a valid result; report it plainly instead of inventing coverage.
 
-## Skill
-Follow the \`sentiment\` skill end to end for the procedure: how to dispatch the subagents, how to read their returns, the branch-status rubric, the provenance rules and the output contract.
-
 ## Output
 Return valid JSON matching the schema, with no prose, commentary or markdown fences.`;
 
 const SENTIMENT_USER_MESSAGE = (ticker: string) =>
 	`Assess recent news sentiment and geopolitical risk for ${ticker}.
 
-Dispatch the \`news_sentiment\` and \`geopolitical\` subagents in parallel, then follow the \`sentiment\` skill to return the structured result: their evidence verbatim and a research status for each branch.`;
+Dispatch the \`news_sentiment\` and \`geopolitical\` subagents in parallel, then return their evidence verbatim with a research status for each branch.`;
 
 export { SENTIMENT_SYSTEM_PROMPT, SENTIMENT_USER_MESSAGE };

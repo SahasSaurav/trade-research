@@ -117,8 +117,11 @@ root plus a `FilesystemPermission` allow/deny pair), so it costs no prompt token
 until the agent reads it.
 
 Deep tables — source hierarchies, firm tiers, metric definitions, grading rubrics —
-live in `skills/<name>/references/*.md`, linked from `SKILL.md` and read on
-demand.
+live in `skills/<name>/references/*.md`, linked from `SKILL.md` and read on demand.
+
+The sentiment orchestrator has no skill of its own. It only dispatches the two
+subagents and collects what they return, so its prompt is the whole contract and
+the how-to stays with the branches that actually research.
 
 A skill `scripts/` directory is deliberately absent: the agents read through a
 `FilesystemBackend`, which is not execution-capable, so deepagents filters the
@@ -127,13 +130,12 @@ rules (deepagents raises `ConfigurationError` when `permissions` meets a sandbox
 backend). Deterministic computation stays in TypeScript tools
 (`compute_valuation_multiples`, `scoreSentimentSources`).
 
-| Agent                      | Skill folder             |
-| -------------------------- | ------------------------ |
-| `valuation`                | `skills/valuation/`      |
-| `analyst`                  | `skills/analyst/`        |
-| `sentiment` (orchestrator) | `skills/sentiment/`      |
-| ↳ `news-sentiment`         | `skills/news-sentiment/` |
-| ↳ `geopolitical`           | `skills/geopolitical/`   |
+| Agent              | Skill folder             |
+| ------------------ | ------------------------ |
+| `valuation`        | `skills/valuation/`      |
+| `analyst`          | `skills/analyst/`        |
+| ↳ `news-sentiment` | `skills/news-sentiment/` |
+| ↳ `geopolitical`   | `skills/geopolitical/`   |
 
 Two Tavily tools (`src/workflows/workflow.ts`) because the filters differ:
 

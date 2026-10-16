@@ -234,6 +234,25 @@ describe("pass-through nodes", () => {
 		expect(seen).toContain("RECOMMENDATION: NONE");
 	});
 
+	it("names a missing artifact rather than stringifying undefined into the prompt", async () => {
+		// The summary also runs when validation fails, so an artifact can be
+		// absent. Interpolating it would put the literal "undefined" in the
+		// prompt — an absence the model reads as a blank finding and fills in.
+		let seen = "";
+		const agent = {
+			invoke: async (input: unknown) => {
+				seen = JSON.stringify(input);
+				return { structuredResponse: null };
+			},
+		} as unknown as ReactAgent<AgentTypeConfig<never>>;
+
+		await createSummaryNode(agent)(state({ valuation: goodValuation }));
+
+		expect(seen).toContain("ANALYST REPORTS: not produced in this run");
+		expect(seen).toContain("SENTIMENT DATA: not produced in this run");
+		expect(seen).not.toContain("undefined");
+	});
+
 	it("stores a decision node's response and marks the run complete", async () => {
 		const decision = { recommendation: "hold" };
 		const node = createDecisionNode(agentReturning(decision));

@@ -1,13 +1,23 @@
+import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import {
 	createAnalystNode,
 	createAnalystRepairNode,
 } from "@src/features/analyst/node.js";
+import { createDebateNode } from "@src/features/debate/node.js";
+import type { DebateData } from "@src/features/debate/schema.js";
+import { createBearSubagent } from "@src/features/debate/subagents/bear/agent.js";
+import type { BearCase } from "@src/features/debate/subagents/bear/schema.js";
+import { createBullSubagent } from "@src/features/debate/subagents/bull/agent.js";
+import type { BullCase } from "@src/features/debate/subagents/bull/schema.js";
 import { createDecisionNode } from "@src/features/decision/node.js";
 import type { DecisionData } from "@src/features/decision/schema.js";
+import { createFinancialsNode } from "@src/features/financials/node.js";
+import type { FinancialsData } from "@src/features/financials/schema.js";
+import { createMarketNode } from "@src/features/market/node.js";
+import type { MarketData } from "@src/features/market/schema.js";
 import type { SentimentData } from "@src/features/sentiment/schema.js";
 import { createSummaryNode } from "@src/features/summary/node.js";
 import { createValidationNode } from "@src/features/validation/node.js";
-import { createValuationNode } from "@src/features/valuation/node.js";
 import type { GraphState } from "@src/workflows/state.js";
 import type { AgentTypeConfig, ReactAgent } from "langchain";
 import { describe, expect, it } from "vitest";
@@ -43,16 +53,80 @@ const goodAnalyst = {
 	],
 };
 
-const goodValuation = {
+// The merged valuation + fundamentals artifact. The share price is deliberately
+// absent — it belongs to the market agent — and EPS appears once, not twice.
+const goodFinancials: FinancialsData = {
 	ticker: "AAPL",
 	dateChecked: TODAY,
+	fiscalPeriod: "TTM",
 	trailingEPS: 6.1,
 	forwardEPS: 6.8,
 	trailingPE: 29.5,
 	forwardPE: 26.4,
 	pegRatio: 2.1,
-	sourceUrls: ["https://example.com/10-k"],
+	revenueTTM: 400,
+	revenueGrowthYoY: 6,
+	grossMargin: 46,
+	operatingMargin: 31,
+	netMargin: 26,
+	netIncomeTTM: 100,
+	operatingCashFlowTTM: 110,
+	freeCashFlowTTM: 100,
+	totalDebt: 100,
+	cashAndEquivalents: 60,
+	netDebt: 40,
+	debtToEquity: 145,
+	interestCoverage: 28,
+	returnOnEquity: 150,
+	returnOnAssets: 22,
+	insiderTransactions: [],
+	sourceUrls: ["https://example.com/financials"],
 };
+
+const goodMarket: MarketData = {
+	ticker: "AAPL",
+	dateChecked: TODAY,
+	price: 250,
+	priceDate: TODAY,
+	trend: "uptrend",
+	trendStrength: "moderate",
+	sma50: 240,
+	sma200: 220,
+	ema10: 248,
+	rsi14: 58,
+	atr14: 4,
+	atrPercent: 1.6,
+	supportLevels: [240, 220],
+	resistanceLevels: [265],
+	volumeTrend: "rising",
+	signals: [{ indicator: "RSI(14)", reading: "58", interpretation: "i" }],
+	sourceUrls: ["https://example.com/market"],
+};
+
+const goodBull: BullCase = {
+	thesis: "the bull case",
+	growthDrivers: [],
+	competitiveAdvantages: [],
+	positiveIndicators: [],
+	riskPosture: "modest risk, funded balance sheet",
+	riskPoints: [],
+	counterpoints: [],
+	confidence: "medium",
+};
+
+const goodBear: BearCase = {
+	thesis: "the bear case",
+	riskFactors: [],
+	competitiveWeaknesses: [],
+	negativeIndicators: [],
+	riskPosture: "elevated risk on a rich multiple",
+	riskPoints: [],
+	counterpoints: [],
+	confidence: "medium",
+};
+
+// The orchestrator's artifact: both cases, as the subagents returned them.
+const goodDebate: DebateData = { bull: goodBull, bear: goodBear };
 
 // Annotated so the string literals keep their enum types; without this the
 // object widens to `string` and fails to satisfy the sentiment schema.
@@ -61,6 +135,7 @@ const goodSentiment: SentimentData = {
 	dateChecked: TODAY,
 	overallSentiment: "neutral",
 	sentimentScore: 0.1,
+	sentimentConfidence: "medium",
 	newsSentimentSources: [],
 	newsSentimentSummary: null,
 	geopoliticalRisks: [],
@@ -77,6 +152,13 @@ const goodDecision: DecisionData = {
 	fairValueMethod: "DCF",
 	entryPriceRange: { min: 200, max: 220, rationale: "margin of safety" },
 	priceTriggers: [],
+	executionPlan: {
+		entryPrice: 240,
+		stopLoss: 228,
+		takeProfit: 275,
+		positionSizing: "4% of portfolio",
+		rationale: "entry near support, stop below the 50-day SMA",
+	},
 	sentimentAssessment: "positive",
 	sentimentScore: 0.2,
 	geopoliticalRisk: "low",
@@ -84,7 +166,7 @@ const goodDecision: DecisionData = {
 	keyRisks: [],
 	keyUncertainties: [],
 	dataDates: {
-		valuation: TODAY,
+		financials: TODAY,
 		analyst: TODAY,
 		sentiment: TODAY,
 	},
@@ -104,9 +186,10 @@ describe("validation node", () => {
 
 		const update = await node(
 			state({
-				valuation: goodValuation,
+				financials: goodFinancials,
 				analyst: goodAnalyst,
 				sentiment: goodSentiment,
+				market: goodMarket,
 			}),
 		);
 
@@ -122,7 +205,7 @@ describe("validation node", () => {
 
 		const update = await node(
 			state({
-				valuation: goodValuation,
+				financials: goodFinancials,
 				analyst: undefined,
 				sentiment: goodSentiment,
 			}),
@@ -139,36 +222,36 @@ describe("validation node", () => {
 
 		const update = await node(
 			state({
-				valuation: goodValuation,
+				financials: goodFinancials,
 				analyst: undefined,
 				sentiment: goodSentiment,
 			}),
 		);
 
 		expect(update?.validation?.analystIssues.length).toBeGreaterThan(0);
-		expect(update?.validation?.valuationIssues).toEqual([]);
+		expect(update?.validation?.financialsIssues).toEqual([]);
 	});
 });
 
 describe("pass-through nodes", () => {
 	it("writes the agent's structured response into state", async () => {
-		const node = createValuationNode(agentReturning(goodValuation));
+		const node = createFinancialsNode(agentReturning(goodFinancials));
 
 		const update = await node(state());
 
-		expect(update).toEqual({ valuation: goodValuation });
+		expect(update).toEqual({ financials: goodFinancials });
 	});
 
-	it("passes the ticker to the valuation agent", async () => {
+	it("passes the ticker to the financials agent", async () => {
 		let seen: unknown;
 		const agent = {
 			invoke: async (input: unknown) => {
 				seen = input;
-				return { structuredResponse: goodValuation };
+				return { structuredResponse: goodFinancials };
 			},
 		} as unknown as ReactAgent<AgentTypeConfig<never>>;
 
-		await createValuationNode(agent)(state({ ticker: "MSFT" }));
+		await createFinancialsNode(agent)(state({ ticker: "MSFT" }));
 
 		expect(JSON.stringify(seen)).toContain("MSFT");
 	});
@@ -182,7 +265,7 @@ describe("pass-through nodes", () => {
 
 	it("passes sentiment and the decision into the summary prompt", async () => {
 		// The system prompt asks for a Sentiment & geopolitical section and
-		// consolidates sourceUrls across the valuation, analyst and sentiment
+		// consolidates sourceUrls across the financials, analyst and sentiment
 		// inputs — neither is answerable while sentiment is dropped. The
 		// decision agent runs first, so the call already exists; passing it is
 		// what lets the summary lead with it.
@@ -196,14 +279,14 @@ describe("pass-through nodes", () => {
 
 		await createSummaryNode(agent)(
 			state({
-				valuation: goodValuation,
+				financials: goodFinancials,
 				analyst: goodAnalyst,
 				sentiment: goodSentiment,
 				decision: goodDecision,
 			}),
 		);
 
-		expect(seen).toContain("VALUATION DATA");
+		expect(seen).toContain("FINANCIALS & VALUATION DATA");
 		expect(seen).toContain("ANALYST REPORTS");
 		expect(seen).toContain("SENTIMENT DATA");
 		expect(seen).toContain("DECISION");
@@ -225,7 +308,7 @@ describe("pass-through nodes", () => {
 
 		await createSummaryNode(agent)(
 			state({
-				valuation: goodValuation,
+				financials: goodFinancials,
 				analyst: goodAnalyst,
 				sentiment: goodSentiment,
 			}),
@@ -246,7 +329,7 @@ describe("pass-through nodes", () => {
 			},
 		} as unknown as ReactAgent<AgentTypeConfig<never>>;
 
-		await createSummaryNode(agent)(state({ valuation: goodValuation }));
+		await createSummaryNode(agent)(state({ financials: goodFinancials }));
 
 		expect(seen).toContain("ANALYST REPORTS: not produced in this run");
 		expect(seen).toContain("SENTIMENT DATA: not produced in this run");
@@ -276,19 +359,23 @@ describe("pass-through nodes", () => {
 
 		await createDecisionNode(agent)(
 			state({
-				valuation: goodValuation,
+				financials: goodFinancials,
 				analyst: goodAnalyst,
 				sentiment: goodSentiment,
+				market: goodMarket,
+				debate: goodDebate,
 			}),
 		);
 
 		// The decision is only as good as what it was shown. If the
-		// valuation/analyst keys were dropped from the context object, this
+		// financials/analyst keys were dropped from the context object, this
 		// is what would catch it.
 		const prompt = JSON.stringify(seen);
 		expect(prompt).toContain("trailingPE");
 		expect(prompt).toContain("Goldman Sachs");
 		expect(prompt).toContain("overallSentiment");
+		expect(prompt).toContain("the bull case");
+		expect(prompt).toContain("the bear case");
 	});
 
 	it("stores the analyst node's response", async () => {
@@ -300,11 +387,11 @@ describe("pass-through nodes", () => {
 	it("assigns an undefined structuredResponse rather than throwing", async () => {
 		// A model that returns no structured output must not crash the node;
 		// the validation node downstream is what turns this into
-		// insufficient_data. Worth pinning, because the four non-sentiment
-		// nodes all assign structuredResponse unvalidated.
-		const node = createValuationNode(agentReturning(undefined));
+		// insufficient_data. Worth pinning, because the research nodes all
+		// assign structuredResponse unvalidated.
+		const node = createFinancialsNode(agentReturning(undefined));
 
-		expect(await node(state())).toEqual({ valuation: undefined });
+		expect(await node(state())).toEqual({ financials: undefined });
 	});
 
 	it("propagates an agent failure to the caller", async () => {
@@ -317,7 +404,7 @@ describe("pass-through nodes", () => {
 			},
 		} as unknown as ReactAgent<AgentTypeConfig<never>>;
 
-		await expect(createValuationNode(agent)(state())).rejects.toThrow(
+		await expect(createFinancialsNode(agent)(state())).rejects.toThrow(
 			"provider exploded",
 		);
 	});
@@ -341,8 +428,9 @@ describe("analyst repair node", () => {
 					pass: false,
 					issues: ["no analyst reports returned"],
 					analystIssues: ["no analyst reports returned"],
-					valuationIssues: [],
+					financialsIssues: [],
 					sentimentIssues: [],
+					marketIssues: [],
 				},
 			}),
 		);
@@ -360,8 +448,9 @@ describe("analyst repair node", () => {
 					pass: false,
 					issues: ["x"],
 					analystIssues: ["x"],
-					valuationIssues: [],
+					financialsIssues: [],
 					sentimentIssues: [],
+					marketIssues: [],
 				},
 			}),
 		);
@@ -388,5 +477,86 @@ describe("analyst repair node", () => {
 		const update = await node(state({ validation: undefined }));
 
 		expect(update?.analyst).toEqual(goodAnalyst);
+	});
+});
+
+describe("research nodes", () => {
+	it("stores the market agent's response", async () => {
+		const node = createMarketNode(agentReturning(goodMarket));
+
+		expect(await node(state())).toEqual({ market: goodMarket });
+	});
+
+	it("passes the ticker to the market agent", async () => {
+		let seen = "";
+		const agent = {
+			invoke: async (input: unknown) => {
+				seen = JSON.stringify(input);
+				return { structuredResponse: goodMarket };
+			},
+		} as unknown as ReactAgent<AgentTypeConfig<never>>;
+
+		await createMarketNode(agent)(state({ ticker: "MSFT" }));
+
+		expect(seen).toContain("MSFT");
+	});
+
+	it("stores the financials agent's response", async () => {
+		const node = createFinancialsNode(agentReturning(goodFinancials));
+
+		expect(await node(state())).toEqual({ financials: goodFinancials });
+	});
+});
+
+describe("debate node", () => {
+	it("gives the orchestrator the research dossier and stores both cases", async () => {
+		let seen = "";
+		const agent = {
+			invoke: async (input: unknown) => {
+				seen = JSON.stringify(input);
+				return { structuredResponse: goodDebate };
+			},
+		} as unknown as ReactAgent<AgentTypeConfig<never>>;
+
+		const update = await createDebateNode(agent)(
+			state({ financials: goodFinancials, market: goodMarket }),
+		);
+
+		expect(update).toEqual({ debate: goodDebate });
+		expect(seen).toContain("FINANCIALS & VALUATION");
+		expect(seen).toContain("TECHNICAL MARKET");
+	});
+
+	it("names a missing branch rather than stringifying undefined into the debate prompt", async () => {
+		let seen = "";
+		const agent = {
+			invoke: async (input: unknown) => {
+				seen = JSON.stringify(input);
+				return { structuredResponse: null };
+			},
+		} as unknown as ReactAgent<AgentTypeConfig<never>>;
+
+		await createDebateNode(agent)(state());
+
+		expect(seen).toContain("FINANCIALS & VALUATION: not produced in this run");
+		expect(seen).not.toContain("undefined");
+	});
+});
+
+describe("debate subagents", () => {
+	// The task tool selects a subagent by name and shows the model its
+	// description, so both are part of the delegation contract: a renamed or
+	// "description"-less subagent would still run but become unpickable.
+	it("exposes the bull and bear as named subagents for the task tool", () => {
+		const model = {} as unknown as BaseChatModel;
+		const bull = createBullSubagent({ model });
+		const bear = createBearSubagent({ model });
+
+		expect(bull.name).toBe("bull");
+		expect(bear.name).toBe("bear");
+		expect(bull.description.length).toBeGreaterThan(0);
+		expect(bear.description.length).toBeGreaterThan(0);
+		expect(bull.runnable).toBeDefined();
+		expect(bear.runnable).toBeDefined();
 	});
 });

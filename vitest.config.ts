@@ -20,10 +20,11 @@ export default defineConfig({
 			include: ["src/**/*.ts"],
 			// Floors are meant to sit just under the measured values so a
 			// regression fails the run rather than being noticed later. They do
-			// not currently: a clean run measures ~95.9 stmts / 83.0 branches /
-			// 96.7 funcs / 97.0 lines, so the run fails on all four. The gap is
-			// src/features/ticker/node.ts (untested), plus partial coverage of
-			// validation/validate.ts, report/render.ts and workflows/graph.ts.
+			// not currently: a clean run measures ~93.5 stmts / 79.7 branches /
+			// 96.5 funcs / 94.4 lines, so the run fails on all four. The gap is
+			// src/features/ticker/node.ts (untested) and ticker/validate.ts, plus
+			// partial coverage of trader/node.ts, report/render.ts and
+			// workflows/graph.ts.
 			thresholds: {
 				statements: 99,
 				branches: 98,
@@ -35,8 +36,8 @@ export default defineConfig({
 			// files with no testable behaviour are excluded: the CLI entry
 			// point, the provider wiring (which constructs live SDK clients),
 			// the skill constants (which read the repo root), the agent
-			// factories (thin `createAgent` calls), and the prompt templates
-			// (string constants).
+			// factories (thin `createAgent` calls, incl. the nested debate and
+			// sentiment subagents), and the prompt templates (string constants).
 			//
 			// Two branches remain uncovered, both unreachable defensive guards
 			// rather than untested logic: the dataValidation router's
@@ -46,8 +47,7 @@ export default defineConfig({
 				"src/index.ts",
 				"src/workflows/workflow.ts",
 				"src/workflows/skills.ts",
-				"src/features/*/agent.ts",
-				"src/features/sentiment/subagents/*/agent.ts",
+				"src/**/agent.ts",
 				"src/**/prompt.ts",
 			],
 		},

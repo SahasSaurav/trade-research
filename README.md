@@ -4,12 +4,15 @@ Multi-agent [LangGraph](https://langchain-ai.github.io/langgraphjs/) pipeline th
 researches a stock ticker and produces a cited **buy / hold / avoid** decision,
 rendered as a terminal report.
 
-Six agents run as nodes in one explicit graph: three research branches fan out in
-parallel (valuation, sell-side analyst, sentiment), a validation node gates them,
-and a decision agent synthesises the result. Valuation and analyst are deep agents,
-and sentiment is a deep orchestrator with native subagents.
+Seven agents run as nodes in one explicit graph. Four research branches fan out
+in parallel (financials, sell-side analyst, sentiment, technical/market); a
+validation node gates them; a bull/bear debate argues over the evidence; and the
+decision and summary agents turn it into a cited call, execution levels and a
+prose note. Financials, analyst, market and sentiment are deep agents, and the
+debate is a deep orchestrator with native bull/bear subagents.
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — system design and component boundaries
+- [WORKFLOW.md](WORKFLOW.md) — the agent graph in Mermaid (graph, delegation, sequence)
 - [AGENTS.md](AGENTS.md) — project instructions and the agents
 - [prefrence.md](prefrence.md) — conventions and preferences
 
@@ -60,7 +63,7 @@ All via environment variables (`.env`); see `.env.example` for defaults.
 | -------------------------- | ------------------------ | ----------------------------------------------- |
 | `MODEL_PROVIDER`           | `ollama`                 | `ollama` \| `openai` \| `xai` \| `google-genai` |
 | `MODEL_NAME`               | `llama3.2`               | Provider model id                               |
-| `MODEL_TEMPERATURE`        | `0.7`                    | Shared by all six agents                        |
+| `MODEL_TEMPERATURE`        | `0.7`                    | Shared by every agent                           |
 | `OLLAMA_BASE_URL`          | `http://localhost:11434` | Local Ollama endpoint                           |
 | `OLLAMA_NUM_CTX`           | unset                    | Context window override                         |
 | `TAVILY_API_KEY`           | —                        | Search                                          |
@@ -90,9 +93,10 @@ scheduled job (Cloud Run Job / ECS RunTask / K8s Job / cron).
 - **Default Ollama model is host-specific** (`gemma4:12b-mlx` is Apple-Silicon /
   MLX) and won't run in a Linux container; use a hosted provider in Docker.
 - All provider keys must be set (see the gotcha above).
-- Deep agents are used for **valuation, analyst, and the sentiment orchestrator**
-  only; decision and summary stay `createAgent`. The benefit is gated on a frontier
-  model — see [AGENTS.md](AGENTS.md).
+- Deep agents are used for **financials, analyst, market, and the sentiment and
+  debate orchestrators**; the decision and summary agents
+  stay `createAgent`. The benefit is gated on a frontier model — see
+  [AGENTS.md](AGENTS.md).
 
 ## Project layout
 
@@ -108,11 +112,15 @@ src/
     skills.ts                  skill constants (root, tools, permissions)
   features/
     ticker/                    ticker validation node
-    valuation/                 deep agent + compute_valuation_multiples tool
+    financials/                deep agent — multiples + statements + insiders
     analyst/                   deep agent + repair node
     sentiment/                 deep orchestrator + native subagents + scorer
+    market/                    deep agent — technicals, levels, trend
+    debate/                    deep orchestrator + bull/bear native subagents
+      subagents/bull/ bear/    bull vs. bear over the evidence, each with a risk posture
+      context.ts               shared debate-dossier builder
     validation/                gates artifacts, reports issues
-    decision/                  structured recommendation agent
+    decision/                  structured call + fair value + execution plan
     summary/                   prose analyst-note agent
     search/tool.ts             Tavily wrapper with query rewriting
 scripts/
@@ -138,8 +146,9 @@ that agent's own skill folder, so it costs nothing until the agent reads it.
 
 | Agent                     | Skill                    |
 | ------------------------- | ------------------------ |
-| valuation (deep)          | `skills/valuation/`      |
+| financials (deep)         | `skills/financials/`     |
 | analyst (deep)            | `skills/analyst/`        |
+| market (deep)             | `skills/market/`         |
 | ↳ news_sentiment subagent | `skills/news-sentiment/` |
 | ↳ geopolitical subagent   | `skills/geopolitical/`   |
 

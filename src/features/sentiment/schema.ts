@@ -21,8 +21,16 @@ const sentimentResearchSchema = z.object({
 const sentimentSchema = sentimentResearchSchema.extend({
 	ticker: z.string(),
 	dateChecked: z.string(),
-	overallSentiment: z.enum(["positive", "neutral", "negative", "unknown"]),
+	overallSentiment: z.enum([
+		"positive",
+		"mixed",
+		"neutral",
+		"negative",
+		"unknown",
+	]),
 	sentimentScore: z.number().min(-1).max(1).nullable(),
+	/** How much weighted evidence backs the band; computed by scoreSentimentSources. */
+	sentimentConfidence: z.enum(["low", "medium", "high"]),
 	sourceUrls: z.array(z.string().url()),
 });
 

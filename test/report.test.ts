@@ -26,6 +26,13 @@ const decision = {
 	priceTriggers: [
 		{ triggerType: "buy", price: 245, explanation: "15-20% below fair value" },
 	],
+	executionPlan: {
+		entryPrice: 245,
+		stopLoss: 232,
+		takeProfit: 300,
+		positionSizing: "3% of portfolio",
+		rationale: "entry at support, stop under the 50-day SMA",
+	},
 	sentimentAssessment: "positive",
 	geopoliticalRisk: "high",
 	keyRisks: ["Multiple compression toward 28-30x implies 20-25% downside."],
@@ -166,6 +173,16 @@ describe("renderReport", () => {
 		const out = renderReport({ ticker: "NVDA", decision, summary });
 
 		expect(out.match(/\[AVOID\]/g)).toHaveLength(1);
+	});
+
+	it("renders the execution plan from the decision", () => {
+		const out = renderReport({ ticker: "NVDA", decision, summary });
+
+		expect(out).toContain("TRADE PLAN");
+		expect(out).toContain("$245.00");
+		expect(out).toContain("$232.00");
+		expect(out).toContain("$300.00");
+		expect(out).toContain("3% of portfolio");
 	});
 
 	it("says so when the run never reached a decision", () => {

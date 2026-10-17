@@ -5,11 +5,13 @@ import { ChatOpenAI } from "@langchain/openai";
 import type { TavilySearch } from "@langchain/tavily";
 import { loadConfig } from "@src/config/config.js";
 import { createAnalystAgent } from "@src/features/analyst/agent.js";
+import { createDebateAgent } from "@src/features/debate/agent.js";
 import { createDecisionAgent } from "@src/features/decision/agent.js";
+import { createFinancialsAgent } from "@src/features/financials/agent.js";
+import { createMarketAgent } from "@src/features/market/agent.js";
 import { createSearchTool } from "@src/features/search/tool.js";
 import { createSentimentAgent } from "@src/features/sentiment/agent.js";
 import { createSummaryAgent } from "@src/features/summary/agent.js";
-import { createValuationAgent } from "@src/features/valuation/agent.js";
 import { createGraph, type GraphAgents } from "@src/workflows/graph.js";
 
 type WorkflowDeps = {
@@ -20,7 +22,7 @@ type WorkflowDeps = {
 };
 
 /**
- * One model instance is shared by all six agents, so anything dropped here is
+ * One model instance is shared by every agent, so anything dropped here is
  * dropped pipeline-wide. Every branch must therefore pass temperature
  * explicitly: a `temperature || default` shortcut reads as correct and
  * silently ignores MODEL_TEMPERATURE on the providers it misses.
@@ -68,8 +70,8 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 	 * agents and actively harmful for the other.
 	 *
 	 * The news subagents want the last day, so they get timeRange "day". The
-	 * valuation and analyst agents want SEC filings, statistics pages and
-	 * broker research, none of which are *published* within 24 hours, so they
+	 * financials, analyst and market agents want SEC filings, statistics pages
+	 * and price history, none of which are *published* within 24 hours, so they
 	 * get no filter at all.
 	 *
 	 * Reference results are deliberately smaller: a ReAct agent re-sends every
@@ -95,23 +97,29 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 			timeRange: config.search.news.timeRange,
 		});
 
-	const valuationAgent =
-		deps.agents?.valuation ??
-		createValuationAgent({ model, search: referenceSearch });
+	const financialsAgent =
+		deps.agents?.financials ??
+		createFinancialsAgent({ model, search: referenceSearch });
 	const analystAgent =
 		deps.agents?.analyst ??
 		createAnalystAgent({ model, search: referenceSearch });
 	const sentimentAgent =
 		deps.agents?.sentiment ??
 		createSentimentAgent({ model, search: newsSearch });
+	const marketAgent =
+		deps.agents?.market ??
+		createMarketAgent({ model, search: referenceSearch });
+	const debateAgent = deps.agents?.debate ?? createDebateAgent({ model });
 	const decisionAgent = deps.agents?.decision ?? createDecisionAgent({ model });
 	const summaryAgent = deps.agents?.summary ?? createSummaryAgent({ model });
 
 	const workflow = createGraph(
 		{
-			valuation: valuationAgent,
+			financials: financialsAgent,
 			analyst: analystAgent,
 			sentiment: sentimentAgent,
+			market: marketAgent,
+			debate: debateAgent,
 			decision: decisionAgent,
 			summary: summaryAgent,
 			tickerSearch: referenceSearch,
@@ -126,9 +134,11 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 		model,
 		referenceSearch,
 		newsSearch,
-		valuationAgent,
+		financialsAgent,
 		analystAgent,
 		sentimentAgent,
+		marketAgent,
+		debateAgent,
 		decisionAgent,
 		summaryAgent,
 		workflow,

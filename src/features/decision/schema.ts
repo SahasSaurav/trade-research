@@ -10,21 +10,39 @@ const decisionSchema = z.object({
 		max: z.number(),
 		rationale: z.string(),
 	}),
+	// Valuation/catalyst thresholds only. Concrete execution levels — stop-loss,
+	// take-profit and sizing — live in executionPlan below, grounded in the
+	// market artifact's support, resistance and ATR.
 	priceTriggers: z.array(
 		z.object({
-			triggerType: z.enum(["buy", "sell", "stop_loss", "take_profit"]),
+			triggerType: z.enum(["buy", "sell"]),
 			price: z.number(),
 			explanation: z.string(),
 		}),
 	),
-	sentimentAssessment: z.enum(["positive", "neutral", "negative", "unknown"]),
+	// The execution plan sits with the call by design: one agent owns both the
+	// recommendation and the levels, so a stop can never contradict the call.
+	executionPlan: z.object({
+		entryPrice: z.number().nullable(),
+		stopLoss: z.number().nullable(),
+		takeProfit: z.number().nullable(),
+		positionSizing: z.string().nullable(),
+		rationale: z.string(),
+	}),
+	sentimentAssessment: z.enum([
+		"positive",
+		"mixed",
+		"neutral",
+		"negative",
+		"unknown",
+	]),
 	sentimentScore: z.number().min(-1).max(1).nullable(),
 	geopoliticalRisk: z.enum(["low", "medium", "high", "unknown"]),
 	geopoliticalFactors: z.array(z.string()),
 	keyRisks: z.array(z.string()),
 	keyUncertainties: z.array(z.string()),
 	dataDates: z.object({
-		valuation: z.string(),
+		financials: z.string(),
 		analyst: z.string(),
 		sentiment: z.string(),
 	}),

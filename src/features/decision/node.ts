@@ -7,9 +7,13 @@ function createDecisionNode(agent: ReactAgent<AgentTypeConfig<DecisionData>>) {
 	return async (state: GraphState) => {
 		const context = {
 			ticker: state.ticker,
-			valuation: state.valuation,
+			financials: state.financials,
 			analyst: state.analyst,
 			sentiment: state.sentiment,
+			market: state.market,
+			// The debate is evidence, not a vote: the arguments are weighed on
+			// the data, and the decision still owns the call and the levels.
+			debate: state.debate,
 		};
 
 		const result = await agent.invoke({

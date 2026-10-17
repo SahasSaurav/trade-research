@@ -78,10 +78,22 @@ describe("scoreSentimentSources", () => {
 		expect(result.overallSentiment).toBe("positive");
 	});
 
-	it("averages opposing sources toward neutral", () => {
+	it("reads a balanced fight as mixed, not neutral", () => {
+		// The score is the same 0 either way, but the band has to say which
+		// finding it is: two loud sides cancelling, or a quiet tape.
 		const result = scoreSentimentSources([
 			source({ sentiment: "positive" }),
 			source({ sentiment: "negative" }),
+		]);
+
+		expect(result.sentimentScore).toBe(0);
+		expect(result.overallSentiment).toBe("mixed");
+	});
+
+	it("keeps neutral for sources that are genuinely quiet", () => {
+		const result = scoreSentimentSources([
+			source({ sentiment: "neutral" }),
+			source({ sentiment: "neutral" }),
 		]);
 
 		expect(result.sentimentScore).toBe(0);
@@ -139,14 +151,15 @@ describe("scoreSentimentSources", () => {
 	// The overall label uses +/-0.15 bands on the raw score, independently of
 	// the score itself. Evidence strength picks the weights (high 1, medium
 	// 0.65, low 0.35), so pairing one positive with one negative source of
-	// differing strength lands on a spread of reachable scores. The +/-0.15
-	// boundary itself is not reachable from this weight table, so it is not
-	// pinned here.
+	// differing strength lands on a spread of reachable scores. A tie inside
+	// the band where both sides still carry weight reads as "mixed". The
+	// +/-0.15 boundary itself is not reachable from this weight table, so it is
+	// not pinned here.
 	it.each([
 		{ pos: "high", neg: "low", score: 0.48, label: "positive" },
 		{ pos: "medium", neg: "low", score: 0.3, label: "positive" },
 		{ pos: "high", neg: "medium", score: 0.21, label: "positive" },
-		{ pos: "medium", neg: "medium", score: 0, label: "neutral" },
+		{ pos: "medium", neg: "medium", score: 0, label: "mixed" },
 		{ pos: "low", neg: "medium", score: -0.3, label: "negative" },
 		{ pos: "low", neg: "high", score: -0.48, label: "negative" },
 	] as Array<{
@@ -185,6 +198,33 @@ describe("scoreSentimentSources", () => {
 		// weight 1 it would be 0.
 		expect(result.sentimentScore).toBe(0.6);
 	});
+
+	it("labels confidence from the weight of the evidence", () => {
+		// Two fresh high-confidence sources reach "high", one reaches
+		// "medium", and a single weak source stays "low".
+		expect(
+			scoreSentimentSources([
+				source({ sentiment: "positive" }),
+				source({ sentiment: "positive" }),
+			]).sentimentConfidence,
+		).toBe("high");
+		expect(scoreSentimentSources([source()]).sentimentConfidence).toBe(
+			"medium",
+		);
+		expect(
+			scoreSentimentSources([source({ confidence: "low" })])
+				.sentimentConfidence,
+		).toBe("low");
+	});
+
+	it("treats a stale-only read as low confidence, not confident", () => {
+		// A 200-day-old source decays to weight 0, so there is nothing to be
+		// confident about: the band is unknown and the confidence is low.
+		const result = scoreSentimentSources([source({ date: daysAgo(200) })]);
+
+		expect(result.overallSentiment).toBe("unknown");
+		expect(result.sentimentConfidence).toBe("low");
+	});
 });
 
 describe("sentiment node", () => {
@@ -203,6 +243,7 @@ describe("sentiment node", () => {
 		expect(update.sentiment?.dateChecked).toBe(TODAY);
 		expect(update.sentiment?.sentimentScore).toBe(1);
 		expect(update.sentiment?.overallSentiment).toBe("positive");
+		expect(update.sentiment?.sentimentConfidence).toBe("medium");
 	});
 
 	it("derives the source URLs from the news sources and geopolitical events", async () => {
@@ -245,6 +286,7 @@ describe("sentiment node", () => {
 
 		expect(update.sentiment?.overallSentiment).toBe("unknown");
 		expect(update.sentiment?.sentimentScore).toBeNull();
+		expect(update.sentiment?.sentimentConfidence).toBe("low");
 		expect(update.sentiment?.researchStatus).toEqual({
 			news: "failed",
 			geopolitical: "failed",

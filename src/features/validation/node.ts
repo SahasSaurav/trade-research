@@ -4,9 +4,10 @@ import type { GraphState } from "@src/workflows/state.js";
 function createValidationNode() {
 	return async (state: GraphState) => {
 		const validation = validateArtifacts(
-			state.valuation,
+			state.financials,
 			state.analyst,
 			state.sentiment,
+			state.market,
 		);
 
 		if (!validation.pass) {

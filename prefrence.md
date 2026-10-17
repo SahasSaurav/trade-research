@@ -29,8 +29,9 @@ agent catalogue are in [AGENTS.md](AGENTS.md); system design in
 - One shared agent contract: langchain's `ReactAgent<AgentTypeConfig<T>>`,
   parameterised by the node's artifact type. `createAgent` and `createDeepAgent`
   both satisfy it without a widened `any`.
-- **Deep agents only where they earn it.** Valuation, analyst, and the sentiment
-  orchestrator use `createDeepAgent`; decision and summary stay `createAgent`.
+- **Deep agents only where they earn it.** Financials, analyst, market, and the
+  sentiment and debate orchestrators use `createDeepAgent`; the decision and
+  summary agents stay `createAgent`.
 - Configuration goes through `loadConfig`; never bake secrets or `.env`.
 
 ## Code and comment style
@@ -55,11 +56,12 @@ agent catalogue are in [AGENTS.md](AGENTS.md); system design in
 
 ## Deep agents
 
-- **Adopted for research agents:** valuation, analyst, and the sentiment
-  orchestrator use `createDeepAgent`. **decision** and **summary** stay plain
-  `createAgent`; they gain nothing.
-- Native subagents: the sentiment orchestrator declares `subagents: [...]` and
-  dispatches through the `task` tool instead of a hand-rolled subgraph.
+- **Adopted for research agents:** financials, analyst, market, and the sentiment
+  and debate orchestrators use `createDeepAgent`. The decision and summary agents
+  stay plain `createAgent`; they gain nothing.
+- Native subagents: the sentiment and debate orchestrators declare
+  `subagents: [...]` and dispatch through the `task` tool instead of a
+  hand-rolled subgraph.
 - Determinism is preserved by putting the model on source _collection_ and code on
   the _number_ (`scoreSentimentSources`).
 - Only trust the deep-agent branches on a **frontier model**; small/local models

@@ -7,15 +7,34 @@ function daysAgo(days: number): string {
 	return new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
 }
 
-const goodValuation = {
+// The merged valuation + fundamentals artifact. EPS appears once and the share
+// price is absent — the market agent owns it.
+const goodFinancials = {
 	ticker: "AAPL",
 	dateChecked: TODAY,
+	fiscalPeriod: "TTM",
 	trailingEPS: 6.1,
 	forwardEPS: 6.8,
 	trailingPE: 29.5,
 	forwardPE: 26.4,
 	pegRatio: 2.1,
-	sourceUrls: ["https://example.com/10-k"],
+	revenueTTM: 400,
+	revenueGrowthYoY: 6,
+	grossMargin: 46,
+	operatingMargin: 31,
+	netMargin: 26,
+	netIncomeTTM: 100,
+	operatingCashFlowTTM: 110,
+	freeCashFlowTTM: 100,
+	totalDebt: 100,
+	cashAndEquivalents: 60,
+	netDebt: 40,
+	debtToEquity: 145,
+	interestCoverage: 28,
+	returnOnEquity: 150,
+	returnOnAssets: 22,
+	insiderTransactions: [],
+	sourceUrls: ["https://example.com/financials"],
 };
 
 function goodReport(overrides: Record<string, unknown> = {}) {
@@ -43,6 +62,7 @@ function goodSentiment(overrides: Record<string, unknown> = {}) {
 		dateChecked: TODAY,
 		overallSentiment: "neutral",
 		sentimentScore: 0.1,
+		sentimentConfidence: "medium",
 		newsSentimentSources: [],
 		newsSentimentSummary: null,
 		geopoliticalRisks: [],
@@ -53,24 +73,51 @@ function goodSentiment(overrides: Record<string, unknown> = {}) {
 	};
 }
 
+const goodMarket = {
+	ticker: "AAPL",
+	dateChecked: TODAY,
+	price: 250,
+	priceDate: TODAY,
+	trend: "uptrend",
+	trendStrength: "moderate",
+	sma50: 240,
+	sma200: 220,
+	ema10: 248,
+	rsi14: 58,
+	atr14: 4,
+	atrPercent: 1.6,
+	supportLevels: [240, 220],
+	resistanceLevels: [265],
+	volumeTrend: "rising",
+	signals: [{ indicator: "RSI(14)", reading: "58", interpretation: "i" }],
+	sourceUrls: ["https://example.com/market"],
+};
+
+/** The research artifacts with well-formed analyst and market defaults. */
+function validate(
+	financials: unknown,
+	analyst: unknown,
+	sentiment: unknown,
+	market: unknown = goodMarket,
+) {
+	return validateArtifacts(financials, analyst, sentiment, market);
+}
+
 afterEach(() => {
 	vi.useRealTimers();
 });
 
 describe("validateArtifacts", () => {
 	it("passes when every artifact is well formed", () => {
-		const result = validateArtifacts(
-			goodValuation,
-			goodAnalyst,
-			goodSentiment(),
-		);
+		const result = validate(goodFinancials, goodAnalyst, goodSentiment());
 
 		expect(result).toEqual({
 			pass: true,
 			issues: [],
 			analystIssues: [],
-			valuationIssues: [],
+			financialsIssues: [],
 			sentimentIssues: [],
+			marketIssues: [],
 		});
 	});
 
@@ -78,51 +125,50 @@ describe("validateArtifacts", () => {
 		// graph.ts routes on validation.analystIssues specifically, sending
 		// only the analyst back for repair. A merged list would make every
 		// failure look analyst-shaped.
-		const result = validateArtifacts(
-			{ ...goodValuation, sourceUrls: [] },
+		const result = validate(
+			{ ...goodFinancials, sourceUrls: [] },
 			{ ...goodAnalyst, reports: [] },
 			goodSentiment(),
 		);
 
 		expect(result.pass).toBe(false);
-		expect(result.valuationIssues).toHaveLength(1);
+		expect(result.financialsIssues).toHaveLength(1);
 		expect(result.analystIssues).toHaveLength(1);
 		expect(result.sentimentIssues).toHaveLength(0);
 		expect(result.issues).toHaveLength(2);
 	});
 
-	describe("valuation", () => {
+	describe("financials", () => {
 		it("rejects data that does not match the schema", () => {
-			const result = validateArtifacts(
-				{ ticker: "AAPL" },
-				goodAnalyst,
-				goodSentiment(),
-			);
+			const result = validate({ ticker: "AAPL" }, goodAnalyst, goodSentiment());
 
-			expect(result.valuationIssues[0]).toMatch(/fails schema/i);
+			expect(result.financialsIssues[0]).toMatch(/fails schema/i);
 			// One issue, not one per missing field: it short-circuits.
-			expect(result.valuationIssues).toHaveLength(1);
+			expect(result.financialsIssues).toHaveLength(1);
 		});
 
 		it("flags a missing sourceUrls array", () => {
-			const result = validateArtifacts(
-				{ ...goodValuation, sourceUrls: [] },
+			const result = validate(
+				{ ...goodFinancials, sourceUrls: [] },
 				goodAnalyst,
 				goodSentiment(),
 			);
 
-			expect(result.valuationIssues[0]).toMatch(/no sourceUrls/i);
+			expect(result.financialsIssues[0]).toMatch(/no sourceUrls/i);
 		});
 
-		it("accepts null multiples, since those mean 'could not verify'", () => {
-			const result = validateArtifacts(
+		it("accepts null multiples and statement figures, since those mean 'could not verify'", () => {
+			const result = validate(
 				{
-					...goodValuation,
+					...goodFinancials,
 					trailingPE: null,
 					forwardPE: null,
 					pegRatio: null,
 					trailingEPS: null,
 					forwardEPS: null,
+					revenueTTM: null,
+					grossMargin: null,
+					netDebt: null,
 				},
 				goodAnalyst,
 				goodSentiment(),
@@ -134,8 +180,8 @@ describe("validateArtifacts", () => {
 
 	describe("analyst", () => {
 		it("flags an empty report list", () => {
-			const result = validateArtifacts(
-				goodValuation,
+			const result = validate(
+				goodFinancials,
 				{ ...goodAnalyst, reports: [] },
 				goodSentiment(),
 			);
@@ -146,8 +192,8 @@ describe("validateArtifacts", () => {
 		it("flags duplicate firms", () => {
 			// The same analyst twice means the agent searched twice rather
 			// than broadening coverage, so the consensus is not independent.
-			const result = validateArtifacts(
-				goodValuation,
+			const result = validate(
+				goodFinancials,
 				{
 					...goodAnalyst,
 					reports: [goodReport(), goodReport({ reportTitle: "Update" })],
@@ -159,8 +205,8 @@ describe("validateArtifacts", () => {
 		});
 
 		it("flags a report with no sourceUrl", () => {
-			const result = validateArtifacts(
-				goodValuation,
+			const result = validate(
+				goodFinancials,
 				{ ...goodAnalyst, reports: [goodReport({ sourceUrl: "" })] },
 				goodSentiment(),
 			);
@@ -169,8 +215,8 @@ describe("validateArtifacts", () => {
 		});
 
 		it("flags a report with no rating", () => {
-			const result = validateArtifacts(
-				goodValuation,
+			const result = validate(
+				goodFinancials,
 				{ ...goodAnalyst, reports: [goodReport({ rating: "" })] },
 				goodSentiment(),
 			);
@@ -179,8 +225,8 @@ describe("validateArtifacts", () => {
 		});
 
 		it("collects every per-report problem, not just the first", () => {
-			const result = validateArtifacts(
-				goodValuation,
+			const result = validate(
+				goodFinancials,
 				{
 					...goodAnalyst,
 					reports: [
@@ -197,8 +243,8 @@ describe("validateArtifacts", () => {
 
 	describe("sentiment", () => {
 		it("flags data older than fourteen days", () => {
-			const result = validateArtifacts(
-				goodValuation,
+			const result = validate(
+				goodFinancials,
 				goodAnalyst,
 				goodSentiment({ dateChecked: daysAgo(15) }),
 			);
@@ -207,8 +253,8 @@ describe("validateArtifacts", () => {
 		});
 
 		it("accepts data exactly at the fourteen day boundary", () => {
-			const result = validateArtifacts(
-				goodValuation,
+			const result = validate(
+				goodFinancials,
 				goodAnalyst,
 				goodSentiment({ dateChecked: daysAgo(13) }),
 			);
@@ -222,8 +268,8 @@ describe("validateArtifacts", () => {
 			// then NaN and `NaN > threshold` is false, so a garbage date reads
 			// as fresh. Tightening this means z.iso.date() on dateChecked across
 			// the schemas, which would also reject the model's free-form dates.
-			const result = validateArtifacts(
-				goodValuation,
+			const result = validate(
+				goodFinancials,
 				goodAnalyst,
 				goodSentiment({ dateChecked: "not a date" }),
 			);
@@ -235,8 +281,8 @@ describe("validateArtifacts", () => {
 		it("accepts a failed subagent as long as the shape is valid", () => {
 			// Partial research is a designed outcome: researchStatus records
 			// which half failed, and the merge node already fell back.
-			const result = validateArtifacts(
-				goodValuation,
+			const result = validate(
+				goodFinancials,
 				goodAnalyst,
 				goodSentiment({
 					researchStatus: { news: "complete", geopolitical: "failed" },
@@ -249,10 +295,34 @@ describe("validateArtifacts", () => {
 		});
 	});
 
-	it("treats all three artifacts missing as a failure", () => {
-		const result = validateArtifacts(undefined, undefined, undefined);
+	it("treats every artifact missing as a failure", () => {
+		const result = validateArtifacts(
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+		);
 
 		expect(result.pass).toBe(false);
-		expect(result.issues).toHaveLength(3);
+		expect(result.issues).toHaveLength(4);
+	});
+
+	describe("market", () => {
+		it("flags a missing sourceUrls array", () => {
+			const result = validate(goodFinancials, goodAnalyst, goodSentiment(), {
+				...goodMarket,
+				sourceUrls: [],
+			});
+
+			expect(result.marketIssues[0]).toMatch(/no sourceUrls/i);
+		});
+
+		it("rejects data that does not match the schema", () => {
+			const result = validate(goodFinancials, goodAnalyst, goodSentiment(), {
+				ticker: "AAPL",
+			});
+
+			expect(result.marketIssues[0]).toMatch(/fails schema/i);
+		});
 	});
 });

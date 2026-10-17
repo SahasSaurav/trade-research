@@ -1,14 +1,16 @@
 import { analystReportSchema } from "@src/features/analyst/schema.js";
+import { financialsSchema } from "@src/features/financials/schema.js";
+import { marketSchema } from "@src/features/market/schema.js";
 import { sentimentSchema } from "@src/features/sentiment/schema.js";
-import { valuationSchema } from "@src/features/valuation/schema.js";
 import { z } from "zod";
 
 const validationSchema = z.object({
 	pass: z.boolean(),
 	issues: z.array(z.string()),
 	analystIssues: z.array(z.string()),
-	valuationIssues: z.array(z.string()),
+	financialsIssues: z.array(z.string()),
 	sentimentIssues: z.array(z.string()),
+	marketIssues: z.array(z.string()),
 });
 
 type ValidationResult = z.infer<typeof validationSchema>;
@@ -44,17 +46,33 @@ function validateAnalystData(analyst: unknown): string[] {
 	return issues;
 }
 
-function validateValuationData(valuation: unknown): string[] {
+function validateFinancialsData(financials: unknown): string[] {
 	const issues: string[] = [];
 
-	const parsed = valuationSchema.safeParse(valuation);
+	const parsed = financialsSchema.safeParse(financials);
 	if (!parsed.success) {
-		issues.push(`valuation data fails schema: ${parsed.error.message}`);
+		issues.push(`financials data fails schema: ${parsed.error.message}`);
 		return issues;
 	}
 
 	if (parsed.data.sourceUrls.length === 0) {
-		issues.push("valuation has no sourceUrls");
+		issues.push("financials has no sourceUrls");
+	}
+
+	return issues;
+}
+
+function validateMarketData(market: unknown): string[] {
+	const issues: string[] = [];
+
+	const parsed = marketSchema.safeParse(market);
+	if (!parsed.success) {
+		issues.push(`market data fails schema: ${parsed.error.message}`);
+		return issues;
+	}
+
+	if (parsed.data.sourceUrls.length === 0) {
+		issues.push("market data has no sourceUrls");
 	}
 
 	return issues;
@@ -78,20 +96,28 @@ function validateSentimentData(sentiment: unknown): string[] {
 }
 
 function validateArtifacts(
-	valuation: unknown,
+	financials: unknown,
 	analyst: unknown,
 	sentiment: unknown,
+	market: unknown,
 ): ValidationResult {
-	const valuationIssues = validateValuationData(valuation);
+	const financialsIssues = validateFinancialsData(financials);
 	const analystIssues = validateAnalystData(analyst);
 	const sentimentIssues = validateSentimentData(sentiment);
-	const issues = [...valuationIssues, ...analystIssues, ...sentimentIssues];
+	const marketIssues = validateMarketData(market);
+	const issues = [
+		...financialsIssues,
+		...analystIssues,
+		...sentimentIssues,
+		...marketIssues,
+	];
 	return {
 		pass: issues.length === 0,
 		issues,
 		analystIssues,
-		valuationIssues,
+		financialsIssues,
 		sentimentIssues,
+		marketIssues,
 	};
 }
 

@@ -1,18 +1,22 @@
 import { Annotation } from "@langchain/langgraph";
 import type { AnalystReportData } from "@src/features/analyst/schema.js";
+import type { DebateData } from "@src/features/debate/schema.js";
 import type { DecisionData } from "@src/features/decision/schema.js";
+import type { FinancialsData } from "@src/features/financials/schema.js";
+import type { MarketData } from "@src/features/market/schema.js";
 import type { SentimentData } from "@src/features/sentiment/schema.js";
 import type { SummaryData } from "@src/features/summary/schema.js";
 import type { TickerValidation } from "@src/features/ticker/validate.js";
 import type { ValidationResult } from "@src/features/validation/validate.js";
-import type { ValuationData } from "@src/features/valuation/schema.js";
 
 const WorkflowState = Annotation.Root({
 	ticker: Annotation<string>,
 	tickerValidation: Annotation<TickerValidation | undefined>,
-	valuation: Annotation<ValuationData | undefined>,
+	financials: Annotation<FinancialsData | undefined>,
 	analyst: Annotation<AnalystReportData | undefined>,
 	sentiment: Annotation<SentimentData | undefined>,
+	market: Annotation<MarketData | undefined>,
+	debate: Annotation<DebateData | undefined>,
 	summary: Annotation<SummaryData | undefined>,
 	validation: Annotation<ValidationResult | undefined>,
 	validationIssues: Annotation<string[]>,

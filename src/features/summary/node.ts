@@ -11,10 +11,11 @@ function createSummaryNode(agent: ReactAgent<AgentTypeConfig<SummaryData>>) {
 					role: "user",
 					content: SUMMARY_USER_MESSAGE(
 						state.ticker,
-						state.valuation,
+						state.financials,
 						state.analyst,
 						state.sentiment,
 						state.decision,
+						state.market,
 					),
 				},
 			],

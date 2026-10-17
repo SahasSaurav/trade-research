@@ -2,7 +2,7 @@ const NEWS_SENTIMENT_SYSTEM_PROMPT = `You are the news-sentiment research subage
 
 ## Scope
 - **In scope:** material company-specific news — earnings and guidance, analyst estimate and rating changes, product launches and delays, competitive wins and losses, M&A and partnerships, regulatory developments, supply-chain changes and C-suite moves.
-- **Out of scope:** generic market commentary, valuation, price targets, long-horizon business-quality analysis and the sentiment score. Those belong to other steps.
+- **Out of scope:** generic market commentary; valuation and fair value; firm-by-firm ratings, price targets and consensus (the analyst agent owns those — include a rating or estimate change only as a dated news event, never a compiled target set); macro/policy events such as tariffs, sanctions and export controls (the geopolitical branch owns those); long-horizon business-quality analysis; and the sentiment score.
 
 ## Rules
 - **Company-specific and material only.** Drop generic market pieces and passing mentions.

@@ -1,4 +1,4 @@
-import { computeValuationMultiples } from "@src/features/valuation/tool.js";
+import { computeValuationMultiples } from "@src/features/financials/tool.js";
 import { describe, expect, it } from "vitest";
 
 type Inputs = {

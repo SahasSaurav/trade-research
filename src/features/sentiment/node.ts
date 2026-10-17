@@ -16,6 +16,7 @@ function failedSentiment(ticker: string): SentimentData {
 		dateChecked: new Date().toISOString().slice(0, 10),
 		overallSentiment: "unknown",
 		sentimentScore: null,
+		sentimentConfidence: "low",
 		newsSentimentSources: [],
 		newsSentimentSummary: null,
 		geopoliticalRisks: [],

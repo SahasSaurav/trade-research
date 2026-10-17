@@ -25,11 +25,17 @@ A compact labelled list, one metric per line, facts only — no interpretation. 
 **Valuation**
 What the multiples mean against the stock's own history, peers, and the market. Judge earnings quality from trailing vs. forward EPS (strong >10%, weak <5%). State what PEG implies and why it is unavailable if it is. Factual and neutral.
 
+**Technicals & fundamentals**
+The trend and its strength, the nearest support and resistance as prices, the ATR (as a price and a percent), and the momentum read — whether it confirms or diverges. Then the fundamentals: revenue growth, margins and their direction, leverage with its interest coverage, and whether profit converts to cash. Judge each on the numbers; write "n/a" for any metric that did not arrive.
+
 **Analyst consensus**
 Rating distribution with counts ("2 Buy, 1 Overweight, 0 Hold, 0 Sell"), average target with its range, implied upside/downside versus current price, recency, and whether the targets are credible against the valuation. Name any outlier.
 
 **Sentiment & geopolitical**
-News sentiment and score with sources; geopolitical risk level with the specific events driving it and their effect on revenue, costs, or supply chain. Check researchStatus: if a branch is failed, state that its data was unavailable — an empty sources or risks list there means missing evidence, not an absence of risk. Skip sentiment interpretation if the data is unquantified.
+News sentiment — its band (mixed means the sources disagree; neutral means they are quiet), score and confidence — with sources; geopolitical risk level with the specific events driving it and their effect on revenue, costs, or supply chain. Check researchStatus: if a branch is failed, state that its data was unavailable — an empty sources or risks list there means missing evidence, not an absence of risk. Skip sentiment interpretation if the data is unquantified.
+
+**Trade plan**
+The execution levels from the decision agent: entry price, stop-loss, take-profit and position sizing, each with its basis (support, ATR, fair value). Report the levels as given; do not invent your own. If no execution plan was produced, say "n/a".
 
 **Risks & catalysts**
 The two or three risks that would break the thesis and the two or three catalysts that would confirm it. Each with a concrete number or event and a timeframe.
@@ -60,10 +66,11 @@ function artifactBlock(label: string, value: unknown): string {
 
 const SUMMARY_USER_MESSAGE = (
 	ticker: string,
-	valuation: unknown,
+	financials: unknown,
 	analyst: unknown,
 	sentiment?: unknown,
 	decision?: unknown,
+	market?: unknown,
 ) => {
 	// Every block is rendered even when its artifact never arrived: a silently
 	// omitted section reads as "nothing to say", and the model supplies the
@@ -73,17 +80,19 @@ const SUMMARY_USER_MESSAGE = (
 	return [
 		`Synthesize this research into a comprehensive summary for ${ticker}.`,
 		"",
-		artifactBlock("VALUATION DATA", valuation),
+		artifactBlock("FINANCIALS & VALUATION DATA", financials),
 		"",
 		artifactBlock("ANALYST REPORTS", analyst),
 		"",
 		artifactBlock("SENTIMENT DATA", sentiment),
 		"",
+		artifactBlock("TECHNICAL MARKET DATA", market),
+		"",
 		decision
-			? `DECISION FROM THE DECISION AGENT (report this call verbatim; do not form your own):\n${JSON.stringify(decision, null, 2)}`
+			? `DECISION FROM THE DECISION AGENT (report this call and its execution plan verbatim; do not form your own):\n${JSON.stringify(decision, null, 2)}`
 			: `DECISION: none was produced for this run. Open with "RECOMMENDATION: NONE — insufficient data", name the missing artifact, and state what that prevents.`,
 		"",
-		"Write a sell-side style note using the exact section headers from your instructions: RECOMMENDATION, Key data, Valuation, Analyst consensus, Sentiment & geopolitical, Risks & catalysts, What would change the call, Bottom line.",
+		"Write a sell-side style note using the exact section headers from your instructions: RECOMMENDATION, Key data, Valuation, Technicals & fundamentals, Analyst consensus, Sentiment & geopolitical, Trade plan, Risks & catalysts, What would change the call, Bottom line.",
 		"",
 		'Facts and figures only — every claim carries its number, and anything missing is written "n/a" rather than estimated.',
 	].join("\n");

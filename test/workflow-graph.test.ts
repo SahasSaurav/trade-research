@@ -28,15 +28,33 @@ const goodAnalyst = {
 	],
 };
 
-const goodValuation = {
+// The merged valuation + fundamentals artifact: EPS once, no share price.
+const goodFinancials = {
 	ticker: "AAPL",
 	dateChecked: TODAY,
+	fiscalPeriod: "TTM",
 	trailingEPS: 6.1,
 	forwardEPS: 6.8,
 	trailingPE: 29.5,
 	forwardPE: 26.4,
 	pegRatio: 2.1,
-	sourceUrls: ["https://example.com/10-k"],
+	revenueTTM: 400,
+	revenueGrowthYoY: 6,
+	grossMargin: 46,
+	operatingMargin: 31,
+	netMargin: 26,
+	netIncomeTTM: 100,
+	operatingCashFlowTTM: 110,
+	freeCashFlowTTM: 100,
+	totalDebt: 100,
+	cashAndEquivalents: 60,
+	netDebt: 40,
+	debtToEquity: 145,
+	interestCoverage: 28,
+	returnOnEquity: 150,
+	returnOnAssets: 22,
+	insiderTransactions: [],
+	sourceUrls: ["https://example.com/financials"],
 };
 
 const decision = { recommendation: "hold" };
@@ -49,6 +67,31 @@ const goodSentiment = {
 	geopoliticalRisks: [],
 	geopoliticalSummary: "none",
 	researchStatus: { news: "complete", geopolitical: "complete" },
+};
+
+const goodMarket = {
+	ticker: "AAPL",
+	dateChecked: TODAY,
+	price: 250,
+	priceDate: TODAY,
+	trend: "uptrend",
+	trendStrength: "moderate",
+	sma50: 240,
+	sma200: 220,
+	ema10: 248,
+	rsi14: 58,
+	atr14: 4,
+	atrPercent: 1.6,
+	supportLevels: [240, 220],
+	resistanceLevels: [265],
+	volumeTrend: "rising",
+	signals: [{ indicator: "RSI(14)", reading: "58", interpretation: "i" }],
+	sourceUrls: ["https://example.com/market"],
+};
+
+const debate = {
+	bull: { thesis: "bull" },
+	bear: { thesis: "bear" },
 };
 
 type Stub = { invokeCount: number; responses: unknown[] };
@@ -74,29 +117,35 @@ function stubAgent(responses: unknown[]): {
 function buildAgents(
 	overrides: Partial<Record<keyof GraphAgents, unknown>> = {},
 ) {
-	const valuation = stubAgent([overrides.valuation ?? goodValuation]);
+	const financials = stubAgent([overrides.financials ?? goodFinancials]);
 	const analyst = stubAgent(
 		overrides.analyst === undefined
 			? [goodAnalyst]
 			: (overrides.analyst as unknown[]),
 	);
 	const sentiment = stubAgent([overrides.sentiment ?? goodSentiment]);
+	const market = stubAgent([overrides.market ?? goodMarket]);
+	const debateAgent = stubAgent([overrides.debate ?? debate]);
 	const decisionAgent = stubAgent([overrides.decision ?? decision]);
 	const summaryAgent = stubAgent([overrides.summary ?? summary]);
 
 	const agents: GraphAgents = {
-		valuation: valuation.agent,
+		financials: financials.agent,
 		analyst: analyst.agent,
 		sentiment: sentiment.agent,
+		market: market.agent,
+		debate: debateAgent.agent,
 		decision: decisionAgent.agent,
 		summary: summaryAgent.agent,
 	};
 
 	return {
 		agents,
-		valuation,
+		financials,
 		analyst,
 		sentiment,
+		market,
+		debateAgent,
 		decisionAgent,
 		summaryAgent,
 	};
@@ -111,20 +160,60 @@ async function run(agents: GraphAgents, ticker = "AAPL") {
 }
 
 describe("workflow graph", () => {
-	it("runs research, validates, decides and summarises in one pass", async () => {
-		const { agents, decisionAgent, summaryAgent } = buildAgents();
+	it("runs research, validates, debates, decides and summarises in one pass", async () => {
+		const {
+			agents,
+			financials,
+			analyst,
+			sentiment,
+			market,
+			debateAgent,
+			decisionAgent,
+			summaryAgent,
+		} = buildAgents();
 
 		const result = await run(agents);
 
-		expect(result.valuation).toEqual(goodValuation);
+		expect(result.financials).toEqual(goodFinancials);
 		expect(result.analyst).toEqual(goodAnalyst);
+		expect(result.market).toEqual(goodMarket);
+		expect(result.debate).toEqual(debate);
 		expect(result.decision).toEqual(decision);
 		expect(result.summary).toEqual(summary);
 		expect(result.workflowStatus).toBe("complete");
-		expect(decisionAgent.stub.invokeCount).toBe(1);
-		// The summary is the program's only output (src/index.ts reads
-		// result.summary?.summary), so it must run on the success path.
-		expect(summaryAgent.stub.invokeCount).toBe(1);
+
+		// Every agent on the success path runs exactly once: the debate is
+		// deterministic, not a loop the model decides when to stop.
+		for (const stub of [
+			financials,
+			analyst,
+			sentiment,
+			market,
+			debateAgent,
+			decisionAgent,
+			summaryAgent,
+		]) {
+			expect(stub.stub.invokeCount).toBe(1);
+		}
+	});
+
+	it("chains the debate deterministically from research to the summary", async () => {
+		// The graph owns the order: researchers, then the debate orchestrator
+		// (which dispatches the bull, then the bear that rebuts it), then the
+		// decision that weighs both. This asserts each stage saw the one before
+		// it, which is what makes the debate a debate rather than independent
+		// monologues.
+		const { agents } = buildAgents();
+		const graph = createGraph(agents);
+		const edges = await graph.getGraph();
+		const targets = (source: string) =>
+			edges.edges
+				.filter((edge) => edge.source === source)
+				.map((edge) => edge.target);
+
+		expect(targets("dataValidation")).toContain("debateAgent");
+		expect(targets("debateAgent")).toEqual(["decisionAgent"]);
+		expect(targets("decisionAgent")).toEqual(["summaryAgent"]);
 	});
 
 	it("runs ticker validation before starting parallel research branches", async () => {
@@ -205,12 +294,12 @@ describe("workflow graph", () => {
 		expect(result.workflowStatus).toBe("insufficient_data");
 	});
 
-	it("does not retry the analyst when the valuation is at fault", async () => {
+	it("does not retry the analyst when the financials are at fault", async () => {
 		// graph.ts routes on validation.analystIssues specifically. If it
-		// checked validation.issues instead, a valuation problem would send
+		// checked validation.issues instead, a financials problem would send
 		// the analyst to repair for no reason.
 		const { agents, analyst } = buildAgents({
-			valuation: { ...goodValuation, sourceUrls: [] },
+			financials: { ...goodFinancials, sourceUrls: [] },
 		});
 
 		await run(agents);

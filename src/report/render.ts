@@ -315,6 +315,13 @@ type ReportInput = {
 			price: number;
 			explanation: string;
 		}[];
+		executionPlan: {
+			entryPrice: number | null;
+			stopLoss: number | null;
+			takeProfit: number | null;
+			positionSizing: string | null;
+			rationale: string;
+		};
 		sentimentAssessment: string;
 		geopoliticalRisk: string;
 		keyRisks: string[];
@@ -406,6 +413,33 @@ function renderReport(input: ReportInput): string {
 						width - 2,
 						color,
 					).map((text, index) => (index === 0 ? `  ${text}` : `    ${text}`)),
+				);
+			}
+		}
+
+		if (decision.executionPlan) {
+			const plan = decision.executionPlan;
+			out.push(...section("Trade plan", width, color));
+			const tradeRows: [string, string][] = [];
+			if (plan.entryPrice !== null) {
+				tradeRows.push(["Entry", money(plan.entryPrice)]);
+			}
+			if (plan.stopLoss !== null) {
+				tradeRows.push(["Stop-loss", money(plan.stopLoss)]);
+			}
+			if (plan.takeProfit !== null) {
+				tradeRows.push(["Take-profit", money(plan.takeProfit)]);
+			}
+			if (plan.positionSizing) {
+				tradeRows.push(["Position size", plan.positionSizing]);
+			}
+			if (tradeRows.length > 0) out.push(...align(tradeRows, width, color));
+			if (plan.rationale) {
+				out.push("");
+				out.push(
+					...renderInline(plan.rationale, width - 2, color).map(
+						(text) => `  ${text}`,
+					),
 				);
 			}
 		}

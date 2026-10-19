@@ -55,6 +55,42 @@ handling, and deep-agent preferences — live in [prefrence.md](prefrence.md).
 | **decision**     | `src/features/decision/`                           | `createAgent`                    | none                                            | Call + fair value + execution plan             |
 | **summary**      | `src/features/summary/`                            | `createAgent`                    | none                                            | Prose analyst note                             |
 
+### Deep agents vs shallow agents
+
+Eleven agents are built one of two ways. The split is deliberate: a deep agent is
+used only where planning (and sometimes delegating) inside a node earns its
+overhead; everything else is a **shallow agent** — a plain single-pass
+`createAgent`.
+
+**Deep agents — 5** (`createDeepAgent`): reason, plan and optionally dispatch
+subagents within the node.
+
+| Agent        | Built as   | Inside the node                                            |
+| ------------ | ---------- | ---------------------------------------------------------- |
+| `financials` | deep agent | reference search + `compute_valuation_multiples`           |
+| `analyst`    | deep agent | reference search                                           |
+| `market`     | deep agent | reference search                                           |
+| `sentiment`  | deep agent | orchestrator — dispatches `news-sentiment`, `geopolitical` |
+| `debate`     | deep agent | orchestrator — dispatches `bull`, then `bear`              |
+
+**Shallow agents — 6** (plain `createAgent`): one pass, no planner.
+
+| Agent            | Built as                       | Tools       |
+| ---------------- | ------------------------------ | ----------- |
+| `decision`       | top-level node                 | none        |
+| `summary`        | top-level node                 | none        |
+| `news-sentiment` | native subagent of `sentiment` | news search |
+| `geopolitical`   | native subagent of `sentiment` | news search |
+| `bull`           | native subagent of `debate`    | none        |
+| `bear`           | native subagent of `debate`    | none        |
+
+The four subagents are shallow even though their orchestrators are deep: the
+`deepagents` `task` tool picks a subagent by name, and each is a self-contained
+`createAgent` runnable with its own prompt and schema. A shallow agent may still
+carry tools and a skill (`news-sentiment`, `geopolitical`); it simply has no
+deep-agent planner. See [ARCHITECTURE.md](ARCHITECTURE.md) for the deep-vs-plain
+rationale and [prefrence.md](prefrence.md) for the conversion rules.
+
 ### How an agent is built
 
 ```ts
@@ -76,9 +112,10 @@ createDeepAgent({
   whose native subagents are bull and bear. All four research branches run in
   parallel and produce artifacts. `financials` is the merged valuation +
   fundamentals agent: one pass over the same filings, with EPS recorded once.
-- **Transform agents** (decision and summary) stay plain `createAgent` — no tools,
-  a single pass; a deep agent adds nothing. Risk posture is part of the bull/bear
-  cases rather than separate agents.
+- **Shallow agents** (decision and summary, plus the four native subagents) are
+  plain `createAgent`: one pass, no planner. A deep agent adds nothing to the
+  decision or the summary, which only synthesize or narrate. Risk posture is part
+  of the bull/bear cases rather than separate agents.
 - **Nested subagents:** the sentiment and debate orchestrators delegate through
   the `deepagents` `task` tool. The sentiment model collects the sources and the
   score is recomputed deterministically; the debate model only collects the two

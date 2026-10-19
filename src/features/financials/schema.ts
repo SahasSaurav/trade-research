@@ -18,7 +18,11 @@ const insiderTransactionSchema = z.object({
  */
 const financialsSchema = z.object({
 	ticker: z.string(),
-	dateChecked: z.string(),
+	dateChecked: z
+		.string()
+		.describe(
+			"Date the research was checked: today, in UTC, ISO 8601 (YYYY-MM-DD).",
+		),
 	fiscalPeriod: z.string().nullable(),
 	trailingEPS: z.number().nullable(),
 	forwardEPS: z.number().nullable(),

@@ -2,7 +2,11 @@ import { z } from "zod";
 
 const marketSchema = z.object({
 	ticker: z.string(),
-	dateChecked: z.string(),
+	dateChecked: z
+		.string()
+		.describe(
+			"Date the research was checked: today, in UTC, ISO 8601 (YYYY-MM-DD).",
+		),
 	price: z.number().nullable(),
 	priceDate: z.string().nullable(),
 	trend: z.enum(["uptrend", "downtrend", "sideways"]).nullable(),

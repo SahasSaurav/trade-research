@@ -9,36 +9,41 @@ catalogue live in [AGENTS.md](AGENTS.md); conventions in
 
 ## High-level flow
 
-A rendered Mermaid version — the graph, the subagent delegation and a sequence
-view — is in [WORKFLOW.md](WORKFLOW.md); the ASCII below is the same flow.
+The wider picture — the graph, the subagent delegation and a sequence view — is
+in [WORKFLOW.md](WORKFLOW.md); the same flow is rendered below.
 
-```
-START
-  │
-  ▼
-tickerCheck ──(invalid_ticker)──────────────────────────────────────► END
-  │ (running)
-  ├────────┬───────────┬────────────┐
-  ▼        ▼           ▼            ▼
-financials analyst   sentiment    market      ← run in parallel
-  │        │           │            │          (sentiment & debate = deep agents
-  │        │           │            │           with native subagents)
-  └────────┴───────────┴────────────┘
-                  │
-                  ▼
-            dataValidation
-                  │
-   ┌──────────────┼───────────────────┬──────────────┐
-   │ analystIssues & budget left       │ pass         │ no pass
-   ▼                                   ▼              ▼
-analystRepair ──► dataValidation  debateAgent    summaryAgent ──► END
-                                      │
-                                      │ dispatches bull → bear
-                                      ▼
-                                 decisionAgent
-                                      │
-                                      ▼
-                                 summaryAgent ──► END
+```mermaid
+flowchart TD
+    START([START]) --> tickerCheck["tickerCheck"]
+
+    tickerCheck -->|"invalid_ticker"| END([END])
+    tickerCheck -->|"running"| financialsAgent & analystAgent & sentimentAgent & marketAgent
+
+    subgraph research["research — run in parallel"]
+        direction LR
+        financialsAgent["financials"]
+        analystAgent["analyst"]
+        sentimentAgent["sentiment<br/>deep · native subagents"]
+        marketAgent["market"]
+    end
+
+    financialsAgent & analystAgent & sentimentAgent & marketAgent --> dataValidation["dataValidation"]
+
+    dataValidation -->|"analystIssues & budget left"| analystRepair["analystRepair"]
+    analystRepair --> dataValidation
+    dataValidation -->|"pass"| debateAgent["debateAgent<br/>dispatches bull → bear"]
+    dataValidation -->|"no pass"| summaryAgent["summaryAgent"]
+
+    debateAgent --> decisionAgent["decisionAgent"]
+    decisionAgent --> summaryAgent
+    summaryAgent --> END
+
+    classDef deep fill:#e6f2ff,stroke:#1f6feb,color:#0b2540;
+    classDef plain fill:#f4f4f4,stroke:#888,color:#222;
+    classDef gate fill:#fff4d6,stroke:#b8860b,color:#3d2c00;
+    class financialsAgent,analystAgent,sentimentAgent,marketAgent,debateAgent deep;
+    class decisionAgent,summaryAgent,analystRepair plain;
+    class tickerCheck,dataValidation gate;
 ```
 
 Edges (from `src/workflows/graph.ts`):

@@ -2,6 +2,7 @@ import type { BaseChatModel } from "@langchain/core/language_models/chat_models"
 import type { TavilySearch } from "@langchain/tavily";
 import { MARKET_SYSTEM_PROMPT } from "@src/features/market/prompt.js";
 import { marketSchema } from "@src/features/market/schema.js";
+import { yahooQuote, yahooTechnicals } from "@src/features/market/tool.js";
 import {
 	DENY_OUTSIDE_SKILL_FOLDER,
 	REPO_ROOT,
@@ -26,7 +27,14 @@ function createMarketAgent(deps: {
 }) {
 	return createDeepAgent({
 		model: deps.model,
-		tools: [deps.search],
+		tools: [
+			deps.search,
+			// Every indicator is computed in code from Yahoo's bars, so the
+			// agent quotes values instead of deriving them. Search is kept for
+			// the independent price check the skill requires.
+			yahooQuote,
+			yahooTechnicals,
+		],
 		systemPrompt: MARKET_SYSTEM_PROMPT,
 		responseFormat: toolStrategy(marketSchema),
 		middleware: [todoListMiddleware()],

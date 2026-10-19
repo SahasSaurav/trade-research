@@ -27,6 +27,28 @@ the same diluted EPS twice.
 
 ## Core workflow
 
+### Step 0: Pull the numbers before searching
+
+**Rule:** Start with the Yahoo Finance tools, then search for provenance and
+confirmation. Search is how a figure becomes citable; the data tools are how it
+becomes correct.
+
+| Tool                         | Answers                                                     |
+| ---------------------------- | ----------------------------------------------------------- |
+| `yahoo_fundamentals`         | TTM revenue, margins, debt, cash, returns, multiples, beta  |
+| `yahoo_statements`           | Reported income / balance-sheet / cash-flow lines by period |
+| `yahoo_insider_transactions` | Filed Form 4 activity, newest first                         |
+| `yahoo_quote`                | Current price and EPS as multiples-tool inputs              |
+| `search`                     | The SEC filing, company IR, and a second source             |
+
+Yahoo is one vendor, not the truth. Every figure the skill marks as
+reconciliation-sensitive still needs a second source. Where Yahoo and a filing
+disagree by more than the tolerance in Step 8, follow the rule and record the
+conflict in `notes`.
+
+An `n/a` from a Yahoo tool means the vendor did not report that field. It is not
+zero: leave the output field `null`.
+
 ### Step 1: Confirm the company and the fiscal period
 
 **Rule:** Ticker, legal name, exchange, and **fiscal year-end** must match across
@@ -46,12 +68,17 @@ field in the output. Report the price you used in `notes`.
 
 - **Current share price (tool input):** most recent close or real-time, dated
   within two days of today; two independent sources agreeing within ±1%.
+  `yahoo_quote` is the first, a search result the second.
 - **Trailing EPS (TTM):** diluted EPS over the most recent twelve months. Prefer
   SEC filings (sum the last four quarters' diluted EPS), then company IR, then an
-  aggregator.
+  aggregator. `yahoo_statements` gives you the filed diluted EPS per period, so
+  check its TTM figure against the sum of the last four quarters before trusting
+  `yahoo_fundamentals`' TTM EPS.
 - **Forward EPS (consensus):** sell-side average diluted EPS for the next twelve
   months. State the fiscal year the consensus refers to.
 - **Long-term growth rate (%):** consensus EPS growth ("Next 5 Years"), for PEG.
+  Yahoo's `earningsTrend` EPS estimates give the forward path, but not a named
+  long-term rate: take the growth rate from search and say where it came from.
 
 ### Step 3: Compute multiples with the tool (never by hand)
 
@@ -131,12 +158,18 @@ note it.
 **Rule:** Report only filed insider transactions (Form 4 in the U.S.); one line
 per transaction.
 
+`yahoo_insider_transactions` lists the filed transactions with Yahoo's own
+description of each. Read the description before classifying: an option
+exercise, a gift or a 10b5-1 plan sale is not an open-market buy or sell.
+
 - Capture insider name, role, type (buy/sell/other), shares, value and date, each
   with a source URL.
 - Cluster reads better than single lines: many insiders selling over weeks (or a
   cluster of buys) is a signal; one scheduled sale is routine.
 - Distinguish **open-market** buys/sells from option exercises and 10b5-1 plan
   sales; label the latter so a routine sale is not read as a bearish bet.
+- If the tool returns no transactions, say that none were available — not that
+  insiders did not trade.
 
 ### Step 8: Cross-check and reconcile
 

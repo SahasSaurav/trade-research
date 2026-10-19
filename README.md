@@ -123,6 +123,9 @@ src/
     decision/                  structured call + fair value + execution plan
     summary/                   prose analyst-note agent
     search/tool.ts             Tavily wrapper with query rewriting
+  utils/
+    indicators.ts              deterministic technical indicators (pure functions)
+    yahoo/                     Yahoo payload helpers — client.ts, format.ts, utils.ts
 scripts/
   rewrite-src-aliases.mjs      rewrites @src imports so the build runs on node
 skills/

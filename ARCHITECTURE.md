@@ -112,19 +112,19 @@ and write it to a state channel. Financials, analyst, market, and the sentiment
 and debate orchestrators are **deep agents** (`createDeepAgent`, `deepagents`);
 the decision and summary agents use `createAgent` (`langchain`).
 
-| Agent                         | Built with    | Tools                                            | Output                  |
-| ----------------------------- | ------------- | ------------------------------------------------ | ----------------------- |
-| `financials`                  | deep agent    | reference search + `compute_valuation_multiples` | `financialsSchema`      |
-| `analyst`                     | deep agent    | reference search                                 | analyst report          |
-| `sentiment` (orchestrator)    | deep agent    | none — `task` subagents                          | `sentimentSchema`       |
-| ↳ `news-sentiment` (subagent) | `createAgent` | news search                                      | news sentiment research |
-| ↳ `geopolitical` (subagent)   | `createAgent` | news search                                      | geopolitical research   |
-| `market`                      | deep agent    | reference search                                 | `marketSchema`          |
-| `debate` (orchestrator)       | deep agent    | none — `task` subagents                          | `debateSchema`          |
-| ↳ `bull` (subagent)           | `createAgent` | none                                             | `bullCaseSchema`        |
-| ↳ `bear` (subagent)           | `createAgent` | none                                             | `bearCaseSchema`        |
-| `decision`                    | `createAgent` | none                                             | `decisionSchema`        |
-| `summary`                     | `createAgent` | none                                             | summary prose           |
+| Agent                         | Built with    | Tools                                                          | Output                  |
+| ----------------------------- | ------------- | -------------------------------------------------------------- | ----------------------- |
+| `financials`                  | deep agent    | reference search + Yahoo tools + `compute_valuation_multiples` | `financialsSchema`      |
+| `analyst`                     | deep agent    | reference search + `yahoo_analyst_consensus`                   | analyst report          |
+| `sentiment` (orchestrator)    | deep agent    | none — `task` subagents                                        | `sentimentSchema`       |
+| ↳ `news-sentiment` (subagent) | `createAgent` | news search                                                    | news sentiment research |
+| ↳ `geopolitical` (subagent)   | `createAgent` | news search                                                    | geopolitical research   |
+| `market`                      | deep agent    | reference search + `yahoo_quote` + `yahoo_technicals`          | `marketSchema`          |
+| `debate` (orchestrator)       | deep agent    | none — `task` subagents                                        | `debateSchema`          |
+| ↳ `bull` (subagent)           | `createAgent` | none                                                           | `bullCaseSchema`        |
+| ↳ `bear` (subagent)           | `createAgent` | none                                                           | `bearCaseSchema`        |
+| `decision`                    | `createAgent` | none                                                           | `decisionSchema`        |
+| `summary`                     | `createAgent` | none                                                           | summary prose           |
 
 ### Ownership boundaries
 
@@ -218,6 +218,45 @@ Two Tavily tools (`src/workflows/workflow.ts`) because the filters differ:
 `src/features/search/tool.ts` rewrites `site:` operators into Tavily's
 `include_domains`, because Tavily rejects site-only queries and the retriever
 swallows the error, causing a wasted loop.
+
+### Yahoo Finance data tools
+
+Search answers "what is being said"; the Yahoo tools answer "what are the
+numbers". Both are attached to the research agents, and the split is deliberate:
+an agent that reads a price or an EPS out of a rendered page is guessing at
+precision, while a structured vendor call returns the figure itself.
+
+Each agent defines the Yahoo tools it uses in its own `tool.ts` — financials
+(fundamentals, statements, insider), analyst (consensus), and market (quote,
+technicals, and the quote financials reuses) — and each returns markdown for the
+model to read and cite. The
+shared payload coercion they lean on — `asNumber`/`asDate` guards, the identity
+and day-range rows, the failure text, the ticker field — lives apart in
+`src/utils/yahoo/`, so reading Yahoo's loosely typed fields is testable without
+a request:
+
+| Tool                         | Answers                                                        |
+| ---------------------------- | -------------------------------------------------------------- |
+| `yahoo_quote`                | Last price with UTC timestamp, ranges, averages, cap, P/E, EPS |
+| `yahoo_technicals`           | Deterministic indicators + tested levels from daily bars       |
+| `yahoo_fundamentals`         | TTM statements, margins, debt, cash, returns, multiples, beta  |
+| `yahoo_statements`           | Reported income / balance-sheet / cash-flow lines by period    |
+| `yahoo_analyst_consensus`    | Rating distribution, targets, estimates, dated rating actions  |
+| `yahoo_insider_transactions` | Filed Form 4 activity, newest first                            |
+
+Three rules keep the layer honest:
+
+- **Fail soft, never throw.** A thrown tool error aborts the research node, so a
+  vendor failure returns a `DATA_UNAVAILABLE` / `NO_DATA_AVAILABLE` sentinel the
+  agent can read and act on. Unknown symbols are separated from vendor outages,
+  so the agent knows whether to retry or report.
+- **Units are printed, not implied.** Yahoo returns margins as fractions and
+  debt/equity as a percent; both are formatted to a labelled percent, and every
+  `n/a` stays `n/a` rather than becoming a zero.
+- **Numbers that can drift are computed, not read.** `yahoo_technicals` runs the
+  indicators in `src/utils/indicators.ts` — pure functions over the
+  bars, tested without a network call — so RSI, ATR, MACD and the tested levels
+  are the same every run and never a model's mental arithmetic.
 
 `compute_valuation_multiples` (`src/features/financials/tool.ts`) computes PE/PEG
 deterministically, so the model never divides in-head.

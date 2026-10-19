@@ -21,6 +21,8 @@ Gather recent, credible, company-specific news and assess its sentiment. Report 
 
 ### Step 1: Search company and key markets
 
+**Rule:** Every entry is found and verified through `search`; there is no pre-fetched headline feed. Run the queries below, then open each promising result.
+
 **Search queries** (run in order):
 
 1. `"[TICKER] earnings"` — quarterly results, beat/miss, guidance

@@ -2,6 +2,7 @@ import type { BaseChatModel } from "@langchain/core/language_models/chat_models"
 import type { TavilySearch } from "@langchain/tavily";
 import { ANALYST_SYSTEM_PROMPT } from "@src/features/analyst/prompt.js";
 import { analystReportSchema } from "@src/features/analyst/schema.js";
+import { yahooAnalystConsensus } from "@src/features/analyst/tool.js";
 import {
 	DENY_OUTSIDE_SKILL_FOLDER,
 	REPO_ROOT,
@@ -26,7 +27,13 @@ function createAnalystAgent(deps: {
 }) {
 	return createDeepAgent({
 		model: deps.model,
-		tools: [deps.search],
+		tools: [
+			deps.search,
+			// Yahoo gives the consensus, the target spread and a dated list of
+			// rating actions; search is still the only way to read a firm's own
+			// note, which is what the schema records.
+			yahooAnalystConsensus,
+		],
 		systemPrompt: ANALYST_SYSTEM_PROMPT,
 		responseFormat: toolStrategy(analystReportSchema),
 		middleware: [todoListMiddleware()],

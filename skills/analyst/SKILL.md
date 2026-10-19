@@ -19,6 +19,28 @@ Gather and verify current analyst research reports on U.S. public companies, rea
 
 ## Core workflow
 
+### Step 0: Read the consensus before searching
+
+**Rule:** Call `yahoo_analyst_consensus` first. It tells you who covers the
+name, how the ratings are distributed, where the targets sit, and which firms
+acted recently — so your searches target firms that actually published instead
+of guessing.
+
+What it gives you:
+
+- the current-month rating distribution (strong buy → strong sell) and the
+  recommendation mean;
+- the number of covering analysts and the mean / median / high / low targets,
+  against the current price;
+- consensus EPS and revenue estimates for the current and next fiscal year, plus
+  recent estimate revisions;
+- a dated list of firm-by-firm rating and target actions.
+
+What it does **not** give you: the notes themselves. Your schema records a firm,
+a rating, a target, a date, a URL and a thesis. Yahoo's action list has no URL and
+no thesis, so a row built from it would be your synthesis wearing a firm's name.
+**Use it to aim your searches, never as the `sourceUrl` of a report.**
+
 ### Step 1: Search for current reports
 
 **Search queries** (run in order):
@@ -27,9 +49,14 @@ Gather and verify current analyst research reports on U.S. public companies, rea
 2. `"[TICKER] analyst report"`
 3. `"[TICKER] upgrade"`
 4. `"[TICKER] downgrade"`
-5. Individual Tier 1 firm searches: `"[FIRM NAME] [TICKER] rating"`
+5. Individual Tier 1 firm searches: `"[FIRM NAME] [TICKER] rating"` — prioritise
+   the firms Yahoo's action list named, most recent first
 
 **Stop searching when:** You have found at least 1 credible report and have exhausted Tier 1 sources. If Tier 1 yields <3, proceed to Tier 2.
+
+A firm that appears in Yahoo's action list with a date and a target is a strong
+lead: you know the note exists and roughly when. It is still a lead — search for
+the note itself so the row carries a real URL and a real thesis.
 
 ### Step 2: Confirm the issuer (NOT merely cited)
 

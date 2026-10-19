@@ -2,7 +2,13 @@ import type { BaseChatModel } from "@langchain/core/language_models/chat_models"
 import type { TavilySearch } from "@langchain/tavily";
 import { FINANCIALS_SYSTEM_PROMPT } from "@src/features/financials/prompt.js";
 import { financialsSchema } from "@src/features/financials/schema.js";
-import { computeValuationMultiples } from "@src/features/financials/tool.js";
+import {
+	computeValuationMultiples,
+	yahooFundamentals,
+	yahooInsiderTransactions,
+	yahooStatements,
+} from "@src/features/financials/tool.js";
+import { yahooQuote } from "@src/features/market/tool.js";
 import {
 	DENY_OUTSIDE_SKILL_FOLDER,
 	REPO_ROOT,
@@ -27,7 +33,16 @@ function createFinancialsAgent(deps: {
 }) {
 	return createDeepAgent({
 		model: deps.model,
-		tools: [deps.search, computeValuationMultiples],
+		tools: [
+			deps.search,
+			computeValuationMultiples,
+			// Yahoo supplies the filed numbers; search supplies the filing and
+			// the second source the skill's reconciliation rule requires.
+			yahooQuote,
+			yahooFundamentals,
+			yahooStatements,
+			yahooInsiderTransactions,
+		],
 		systemPrompt: FINANCIALS_SYSTEM_PROMPT,
 		responseFormat: toolStrategy(financialsSchema),
 		middleware: [todoListMiddleware()],

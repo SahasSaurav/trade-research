@@ -28,6 +28,11 @@ plain `createAgent`.
 Invariants the pipeline depends on — do not break these:
 
 - Feature-based folders: `src/features/<feature>/{agent,node,prompt,schema,tool}.ts`.
+- Vendor and data helpers live in `src/utils/` (`src/utils/yahoo/` for the
+  Yahoo payload helpers, `src/utils/indicators.ts` for the pure technical
+  indicators), not as a feature — they are shared plumbing, not an agent. The
+  agent-facing tools stay in the feature that calls them, one `tool.ts` per
+  feature (e.g. `src/features/market/tool.ts`).
 - Agents return **structured output** via `responseFormat: toolStrategy(schema)`;
   nodes read `result.structuredResponse`.
 - Orchestration stays in the explicit `StateGraph` — keep it deterministic.
@@ -41,19 +46,19 @@ handling, and deep-agent preferences — live in [prefrence.md](prefrence.md).
 
 ## The agents
 
-| Agent            | Path                                               | Built with                       | Tools                                           | Role                                           |
-| ---------------- | -------------------------------------------------- | -------------------------------- | ----------------------------------------------- | ---------------------------------------------- |
-| **financials**   | `src/features/financials/`                         | `createDeepAgent`                | reference search, `compute_valuation_multiples` | Valuation multiples + statements, insiders     |
-| **analyst**      | `src/features/analyst/`                            | `createDeepAgent`                | reference search                                | Sell-side consensus, targets, ratings          |
-| **sentiment**    | `src/features/sentiment/`                          | `createDeepAgent` (orchestrator) | none — delegates to subagents                   | Merged sentiment artifact                      |
-| ↳ news-sentiment | `src/features/sentiment/subagents/news-sentiment/` | `createAgent` (native subagent)  | news search                                     | Recent news tone                               |
-| ↳ geopolitical   | `src/features/sentiment/subagents/geopolitical/`   | `createAgent` (native subagent)  | news search                                     | Geopolitical / macro risk                      |
-| **market**       | `src/features/market/`                             | `createDeepAgent`                | reference search                                | Technicals: trend, levels, indicators          |
-| **debate**       | `src/features/debate/`                             | `createDeepAgent` (orchestrator) | none — delegates to subagents                   | Bull vs. bear over the evidence                |
-| ↳ bull           | `src/features/debate/subagents/bull/`              | `createAgent` (native subagent)  | none                                            | Bull case + its risk posture                   |
-| ↳ bear           | `src/features/debate/subagents/bear/`              | `createAgent` (native subagent)  | none                                            | Bear case; rebuts the bull, + its risk posture |
-| **decision**     | `src/features/decision/`                           | `createAgent`                    | none                                            | Call + fair value + execution plan             |
-| **summary**      | `src/features/summary/`                            | `createAgent`                    | none                                            | Prose analyst note                             |
+| Agent            | Path                                               | Built with                       | Tools                                                                                        | Role                                           |
+| ---------------- | -------------------------------------------------- | -------------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| **financials**   | `src/features/financials/`                         | `createDeepAgent`                | reference search, `compute_valuation_multiples`, Yahoo quote/fundamentals/statements/insider | Valuation multiples + statements, insiders     |
+| **analyst**      | `src/features/analyst/`                            | `createDeepAgent`                | reference search, Yahoo consensus                                                            | Sell-side consensus, targets, ratings          |
+| **sentiment**    | `src/features/sentiment/`                          | `createDeepAgent` (orchestrator) | none — delegates to subagents                                                                | Merged sentiment artifact                      |
+| ↳ news-sentiment | `src/features/sentiment/subagents/news-sentiment/` | `createAgent` (native subagent)  | news search                                                                                  | Recent news tone                               |
+| ↳ geopolitical   | `src/features/sentiment/subagents/geopolitical/`   | `createAgent` (native subagent)  | news search                                                                                  | Geopolitical / macro risk                      |
+| **market**       | `src/features/market/`                             | `createDeepAgent`                | reference search, Yahoo quote/technicals                                                     | Technicals: trend, levels, indicators          |
+| **debate**       | `src/features/debate/`                             | `createDeepAgent` (orchestrator) | none — delegates to subagents                                                                | Bull vs. bear over the evidence                |
+| ↳ bull           | `src/features/debate/subagents/bull/`              | `createAgent` (native subagent)  | none                                                                                         | Bull case + its risk posture                   |
+| ↳ bear           | `src/features/debate/subagents/bear/`              | `createAgent` (native subagent)  | none                                                                                         | Bear case; rebuts the bull, + its risk posture |
+| **decision**     | `src/features/decision/`                           | `createAgent`                    | none                                                                                         | Call + fair value + execution plan             |
+| **summary**      | `src/features/summary/`                            | `createAgent`                    | none                                                                                         | Prose analyst note                             |
 
 ### Deep agents vs shallow agents
 
@@ -65,13 +70,13 @@ overhead; everything else is a **shallow agent** — a plain single-pass
 **Deep agents — 5** (`createDeepAgent`): reason, plan and optionally dispatch
 subagents within the node.
 
-| Agent        | Built as   | Inside the node                                            |
-| ------------ | ---------- | ---------------------------------------------------------- |
-| `financials` | deep agent | reference search + `compute_valuation_multiples`           |
-| `analyst`    | deep agent | reference search                                           |
-| `market`     | deep agent | reference search                                           |
-| `sentiment`  | deep agent | orchestrator — dispatches `news-sentiment`, `geopolitical` |
-| `debate`     | deep agent | orchestrator — dispatches `bull`, then `bear`              |
+| Agent        | Built as   | Inside the node                                                                                |
+| ------------ | ---------- | ---------------------------------------------------------------------------------------------- |
+| `financials` | deep agent | reference search + `compute_valuation_multiples` + Yahoo quote/fundamentals/statements/insider |
+| `analyst`    | deep agent | reference search + Yahoo consensus                                                             |
+| `market`     | deep agent | reference search + Yahoo quote/technicals                                                      |
+| `sentiment`  | deep agent | orchestrator — dispatches `news-sentiment`, `geopolitical`                                     |
+| `debate`     | deep agent | orchestrator — dispatches `bull`, then `bear`                                                  |
 
 **Shallow agents — 6** (plain `createAgent`): one pass, no planner.
 

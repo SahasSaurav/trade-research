@@ -33,16 +33,26 @@ quote is dated.
 
 **Rule:** Read from a dated chart or quote page; never reason about price from memory.
 
-Sources, in priority order:
+Call the data tools first, then use search to confirm:
 
-| Priority | Source                                      | Use for                                   |
-| -------- | ------------------------------------------- | ----------------------------------------- |
-| 1        | Exchange / official quote (NASDAQ, NYSE)    | Last close, session date                  |
-| 2        | Yahoo Finance, StockAnalysis.com, Investing | OHLCV history, indicators                 |
-| 3        | Broker or data vendor chart pages           | Cross-check of a level or indicator value |
+| Priority | Source                                   | Use for                                  |
+| -------- | ---------------------------------------- | ---------------------------------------- |
+| 1        | `yahoo_technicals` (Yahoo Finance)       | Every indicator value and tested level   |
+| 2        | `yahoo_quote` (Yahoo Finance)            | Last price, its UTC time, ranges         |
+| 3        | Exchange / official quote (NASDAQ, NYSE) | Independent check of the last close      |
+| 4        | StockAnalysis, Investing, broker pages   | Independent check of one level/indicator |
+
+`yahoo_technicals` computes the indicators deterministically from daily bars and is the
+**source of truth** for any number you emit. Quote its values as given: do not recompute,
+re-round, or substitute an indicator it did not return. If a web page disagrees, the tool
+wins and the conflict goes in `notes`.
 
 Take at least two sources for the **current price** and reconcile them the way the valuation
-skill does: within ±1% use the average, beyond that flag the conflict in `notes`.
+skill does: within ±1% use the average, beyond that flag the conflict in `notes`. The second
+source is a search result, not a second opinion on the indicators.
+
+If a data tool answers `DATA_UNAVAILABLE` / `NO_DATA_AVAILABLE`, fall back to search, set the
+values you could not verify to `null`, and say so in `notes`.
 
 ### Step 3: Select complementary indicators
 

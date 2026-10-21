@@ -83,9 +83,11 @@ docker run --rm \
   trade-research
 ```
 
-Multi-stage `node:26-alpine` image (deps + runtime), non-root, runs `tsx` from
-source. It writes nothing to disk, so there is no volume and no port. Run it as a
-scheduled job (Cloud Run Job / ECS RunTask / K8s Job / cron).
+Multi-stage `node:26-alpine` image (deps → build → prod-deps → runtime). The runtime
+stage installs production dependencies only — no compiler, no test tooling — and runs
+the compiled `dist/src/index.js` on plain Node. It writes nothing to disk, so there is
+no volume and no port. Run it as a scheduled job (Cloud Run Job / ECS RunTask / K8s
+Job / cron).
 
 ## Limitations
 

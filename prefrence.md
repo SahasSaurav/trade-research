@@ -14,6 +14,11 @@ agent catalogue are in [AGENTS.md](AGENTS.md); system design in
 - **Lint / format:** oxlint + oxfmt (tabs). `npm run check` = lint +
   `format:check` + `typecheck`.
 - **Tests:** vitest (`npm test`).
+- **Dependencies:** anything the running code imports goes in `dependencies`; tools
+  used only to build, test, lint or format (`typescript`, `vitest`, `oxlint`,
+  `oxfmt`, `tsx`) go in `devDependencies`, so the Docker runtime stage
+  (`npm ci --omit=dev`) stays free of them. Declare every package you import
+  directly — never lean on a transitive or auto-installed peer dependency.
 - **Commits:** Conventional Commits — `feat`, `fix`, `refactor`, `chore`, `perf`,
   `build`, `test`.
 - **Docker:** `node:26-alpine`, multi-stage, non-root `node` user, secrets via env

@@ -41,6 +41,10 @@ Find developments that could materially affect a company, confirm the company co
 
 ### Step 2: Search each region and category for geopolitical developments
 
+**Rule:** Run the queries with `search` and open the decisive results with `open_url`. The connection you assert in Step 3 is a claim about the article body — a snippet that mentions the company proves nothing.
+
+The news search window defaults to a month. Geopolitical events run longer than earnings news, so when a known ongoing situation is not surfacing, re-run with `timeRange: "year"` before concluding it has passed.
+
 **Risk categories and search terms:**
 
 | Category             | Search terms                                                   | Examples                                  |
@@ -78,7 +82,7 @@ Find developments that could materially affect a company, confirm the company co
 
 **How to confirm:**
 
-1. Read the full article (not just headline)
+1. Read the full article with `open_url` (not just the headline)
 2. Ask: "How does this event specifically affect this company?" (Revenue? Costs? Supply? Regulation?)
 3. If you cannot establish a link in 1–2 sentences, mark `companyConnection: "none"` and **exclude the entry**
 

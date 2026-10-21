@@ -33,7 +33,7 @@ quote is dated.
 
 **Rule:** Read from a dated chart or quote page; never reason about price from memory.
 
-Call the data tools first, then use search to confirm:
+Call the data tools first, then use `search` to find the page and `open_url` to read it:
 
 | Priority | Source                                   | Use for                                  |
 | -------- | ---------------------------------------- | ---------------------------------------- |
@@ -49,10 +49,11 @@ wins and the conflict goes in `notes`.
 
 Take at least two sources for the **current price** and reconcile them the way the valuation
 skill does: within ±1% use the average, beyond that flag the conflict in `notes`. The second
-source is a search result, not a second opinion on the indicators.
+source is a page you opened with `open_url`, not a snippet and not a second opinion on the
+indicators.
 
-If a data tool answers `DATA_UNAVAILABLE` / `NO_DATA_AVAILABLE`, fall back to search, set the
-values you could not verify to `null`, and say so in `notes`.
+If a data tool answers `DATA_UNAVAILABLE` / `NO_DATA_AVAILABLE`, fall back to `search` plus
+`open_url`, set the values you could not verify to `null`, and say so in `notes`.
 
 ### Step 3: Select complementary indicators
 

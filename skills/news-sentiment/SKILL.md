@@ -21,7 +21,7 @@ Gather recent, credible, company-specific news and assess its sentiment. Report 
 
 ### Step 1: Search company and key markets
 
-**Rule:** Every entry is found and verified through `search`; there is no pre-fetched headline feed. Run the queries below, then open each promising result.
+**Rule:** Every entry is found with `search` and confirmed with `open_url`; there is no pre-fetched headline feed. Run the queries below, then open each promising result.
 
 **Search queries** (run in order):
 
@@ -38,12 +38,12 @@ Gather recent, credible, company-specific news and assess its sentiment. Report 
 
 ### Step 2: Open and verify every article
 
-**Rule:** Never cite from a search snippet. Open the article and read the body.
+**Rule:** Never cite from a search snippet. Open the article with `open_url` and read the body.
 
 **Verification checklist:**
 
 1. Does the article contain company-specific news (not generic market commentary)?
-2. Is the news recent (≤30 days preferred, up to 90 acceptable)?
+2. Is the news recent (≤30 days preferred, up to 90 acceptable)? The news search defaults to a one-month window; when coverage is thin, re-run it with a wider `timeRange` rather than reporting that nothing happened.
 3. Does the body support the headline sentiment? (Headlines can be sensational)
 4. Is the date clear (publication or event date)?
 5. Does the URL resolve to a major or reputable outlet?
@@ -234,7 +234,7 @@ Deeper detail — what counts as material evidence, the source tiers and the rec
 
 **Can't find recent news?**
 
-- Expand date range to 30–60 days
+- Widen the search window: pass `timeRange: "year"` to `search` and keep whatever falls inside 30 days first; the tool's ranges are only day, week, month and year
 - Try regional search: `"[COMPANY] [region] news"`
 - If genuinely no material news, return empty `newsSentimentSources` and note "No material recent news found"
 
@@ -246,10 +246,9 @@ Deeper detail — what counts as material evidence, the source tiers and the rec
 
 **Paywall-gated articles?**
 
-- If you can see the headline, date, and key details, it still counts as verified
-- Record the URL
-- Claude often has access to paywalled content
-- If completely inaccessible, drop the article
+- If `open_url` returns enough of the page to state the outlet, date and facts, record it and note "paywalled" in the summary
+- A headline is not the body: do not attribute details to an article you could only see the top of
+- If all you get is a teaser, drop the article and look for another outlet covering the same event
 
 **Multiple articles from same outlet on same event?**
 

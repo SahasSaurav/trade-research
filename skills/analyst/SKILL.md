@@ -43,7 +43,7 @@ no thesis, so a row built from it would be your synthesis wearing a firm's name.
 
 ### Step 1: Search for current reports
 
-**Search queries** (run in order):
+**Search queries** (run in order with `search`, then open the promising hits with `open_url` — a result you have not read is a lead, not a report):
 
 1. `"[TICKER] analyst rating"`
 2. `"[TICKER] analyst report"`
@@ -52,7 +52,9 @@ no thesis, so a row built from it would be your synthesis wearing a firm's name.
 5. Individual Tier 1 firm searches: `"[FIRM NAME] [TICKER] rating"` — prioritise
    the firms Yahoo's action list named, most recent first
 
-**Stop searching when:** You have found at least 1 credible report and have exhausted Tier 1 sources. If Tier 1 yields <3, proceed to Tier 2.
+**Target:** three or more different firms. **Floor:** one verified report — two honest reports beat three padded ones.
+
+**Stop searching when:** you have verified reports from three different firms, or Tier 1 and Tier 2 are both exhausted. If Tier 1 yields fewer than three firms, work through Tier 2 before stopping.
 
 A firm that appears in Yahoo's action list with a date and a target is a strong
 lead: you know the note exists and roughly when. It is still a lead — search for
@@ -78,10 +80,22 @@ the note itself so the row carries a real URL and a real thesis.
 | **rating**      | Rating from the report **body** (not headline) — must be explicit                                                                             | Report body; map to Buy/Hold/Sell scale |
 | **priceTarget** | 12-month USD target (or null if unstated; never guess)                                                                                        | Report body; if range, use midpoint     |
 | **reportDate**  | Date issued, `YYYY-MM-DD` format                                                                                                              | Report date or article publish date     |
-| **sourceUrl**   | The exact URL you opened (must resolve)                                                                                                       | Browser address bar                     |
+| **sourceUrl**   | The exact URL you opened with `open_url` (must resolve)                                                                                       | The page you read                       |
 | **summary**     | 1–2 sentences: the action (initiation/upgrade/downgrade/reiterate, and any target change), the driver, and the risk if it is the note's point | Synthesize from report body             |
 
 **Critical rule:** If any of firm, rating, sourceUrl, or reportDate cannot be verified, **drop that report entirely.** Do not guess or estimate.
+
+**Rating mapping — the only three values the output accepts:**
+
+| What the report says                                   | `rating` |
+| ------------------------------------------------------ | -------- |
+| Positive, Overweight, Outperform, Accumulate, Buy      | **Buy**  |
+| Equal-weight, Inline, Perform, Market Perform, Neutral | **Hold** |
+| Reduce, Underperform, Underweight, Sell                | **Sell** |
+
+Read it from the body, not the headline: a headline that says "upgrade" over a
+body that says "Neutral" is a **Hold**. The schema rejects anything off this
+scale, so the mapping happens here, once, rather than downstream.
 
 ### Step 4: Read it the way the analyst wrote it
 
@@ -112,10 +126,10 @@ distribution implies, where each part of a real note lives, and the vocabulary.
 
 For each report you intend to include:
 
-1. **Rating stated, not inferred:** Open the source URL again. The rating (Buy, Hold, Sell) must appear explicitly in the report body.
+1. **Rating stated, not inferred:** Open the source again with `open_url`. The rating (Buy, Hold, Sell) must appear explicitly in the body you read.
 2. **Price target stated or absent:** Confirm the target exists and is a 12-month USD figure (or note non-USD currency).
 3. **Date correct:** Verify the report or article date matches your record.
-4. **URL resolves:** Paste into browser — it must load and show the article.
+4. **URL resolves:** `open_url` returns the page itself — not a redirect stub, a 404 or an empty body — and the details you recorded are on it.
 5. **Thesis clear:** You can summarize the analyst's reasoning in 1–2 sentences.
 
 **If any verification fails, drop the report.**
@@ -158,7 +172,7 @@ Read them when the workflow points you at a table that is not here.
 - `priceTarget` is the only nullable field; set to `null` when unstated, never estimated
 - If stated as a range ($240–$260), use midpoint ($250) and note "range midpoint" in summary
 - If stated in a non-USD currency and FX rate is not in the report, set to `null` and note currency in summary
-- `reports` array is required; return ≥1 verified report minimum
+- `reports` array is required; return at least one verified report — three or more different firms is the target, not a licence to pad
 - No padding: return only verified reports, even if <3
 
 ## Example output
@@ -227,9 +241,9 @@ Read them when the workflow points you at a table that is not here.
 
 **Source URL is behind a paywall?**
 
-- If you can see the headline and key details (firm, rating, date, target), it still counts as verified
-- Record the URL; Claude can often access paywalled content
-- If the article is completely inaccessible, drop it
+- If `open_url` returns enough of the page to state the firm, rating, date and target, record it and note "paywalled" in the summary.
+- A headline is not the body. Use a headline-only rating only when the headline states it explicitly, and never invent a target or a thesis the page did not show.
+- If all you get is a teaser, drop the report and look for another outlet quoting the same note.
 
 **Conflicting reports from the same firm?**
 

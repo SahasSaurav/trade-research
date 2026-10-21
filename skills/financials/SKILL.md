@@ -30,8 +30,9 @@ the same diluted EPS twice.
 ### Step 0: Pull the numbers before searching
 
 **Rule:** Start with the Yahoo Finance tools, then search for provenance and
-confirmation. Search is how a figure becomes citable; the data tools are how it
-becomes correct.
+confirmation. `search` finds the filing or release and `open_url` reads it; a
+figure becomes citable when you have seen it on the page. The data tools are how
+it becomes correct.
 
 | Tool                         | Answers                                                     |
 | ---------------------------- | ----------------------------------------------------------- |
@@ -40,6 +41,7 @@ becomes correct.
 | `yahoo_insider_transactions` | Filed Form 4 activity, newest first                         |
 | `yahoo_quote`                | Current price and EPS as multiples-tool inputs              |
 | `search`                     | The SEC filing, company IR, and a second source             |
+| `open_url`                   | The body of that page: the filing line, the IR release text |
 
 Yahoo is one vendor, not the truth. Every figure the skill marks as
 reconciliation-sensitive still needs a second source. Where Yahoo and a filing

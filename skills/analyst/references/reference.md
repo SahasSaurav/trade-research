@@ -34,7 +34,7 @@ Read the rating from the report **body**, not the headline. Headline language ma
 - **Seeking Alpha** — include only if a named Tier 1 or Tier 2 analyst is explicitly credited
 - **Benzinga** — financial news; use only named analyst reports
 
-**Stop searching:** After exhausting Tier 1 and finding at least 1 credible report, you have done due diligence. Return what you verified.
+**Stop searching:** After exhausting Tier 1 (and Tier 2 when Tier 1 gave you fewer than three firms), return what you verified. One verified report is a valid result; padding to three is not.
 
 ## Source priority and recency
 

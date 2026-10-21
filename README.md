@@ -68,9 +68,9 @@ All via environment variables (`.env`); see `.env.example` for defaults.
 | `OLLAMA_NUM_CTX`           | unset                    | Context window override                         |
 | `TAVILY_API_KEY`           | —                        | Search                                          |
 | `SEARCH_REFERENCE_*`       | `5 / 1 / advanced`       | `MAX_RESULTS` / `CHUNKS_PER_SOURCE` / `DEPTH`   |
-| `SEARCH_NEWS_*`            | `5 / day`                | `MAX_RESULTS` / `TIME_RANGE`                    |
+| `SEARCH_NEWS_*`            | `5 / month`              | `MAX_RESULTS` / `TIME_RANGE` (a fallback)       |
 | `BUDGET_ANALYST_ATTEMPTS`  | `2`                      | Repair rounds (0 disables)                      |
-| `BUDGET_RESEARCH_ATTEMPTS` | `3`                      | Sentiment retry attempts                        |
+| `BUDGET_RESEARCH_ATTEMPTS` | `3`                      | Sentiment attempts, transient errors only       |
 
 ## Docker
 

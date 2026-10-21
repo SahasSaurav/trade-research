@@ -4,6 +4,9 @@ import { z } from "zod";
 
 const schema = z.object({ value: z.number() });
 
+/** The predicate the sentiment node uses: is there anything usable here? */
+const usable = (data: { value: number }) => data.value > 0;
+
 /** An error shaped like the ones provider SDKs actually throw. */
 function providerError(message: string, extra: Record<string, unknown>) {
 	return Object.assign(new Error(message), extra);
@@ -154,6 +157,59 @@ describe("runResearch", () => {
 
 		expect(outcome.data).toBeNull();
 		expect(outcome.error).toBe("[object Object]");
+	});
+
+	describe("usable-result retry", () => {
+		it("retries once when a valid result is unusable", async () => {
+			let calls = 0;
+			const outcome = await runResearch(
+				async () => {
+					calls += 1;
+					return { value: calls === 1 ? 0 : 1 };
+				},
+				schema,
+				3,
+				usable,
+			);
+
+			expect(calls).toBe(2);
+			expect(outcome).toEqual({ data: { value: 1 }, error: null });
+		});
+
+		it("returns the unusable artifact rather than an error when the retry is no better", async () => {
+			// A quiet branch is a legitimate result: after one retry the caller
+			// gets the artifact and decides for itself that there is nothing in
+			// it — an error would turn "no news" into "research failed".
+			let calls = 0;
+			const outcome = await runResearch(
+				async () => {
+					calls += 1;
+					return { value: 0 };
+				},
+				schema,
+				3,
+				usable,
+			);
+
+			expect(calls).toBe(2);
+			expect(outcome).toEqual({ data: { value: 0 }, error: null });
+		});
+
+		it("does not retry an unusable result when the budget is one attempt", async () => {
+			let calls = 0;
+
+			await runResearch(
+				async () => {
+					calls += 1;
+					return { value: 0 };
+				},
+				schema,
+				1,
+				usable,
+			);
+
+			expect(calls).toBe(1);
+		});
 	});
 
 	describe("attempt budget", () => {

@@ -43,7 +43,16 @@ const AppConfigSchema = z.object({
 		}),
 		news: z.object({
 			maxResults: z.coerce.number().int().min(1).default(5),
-			timeRange: z.enum(["day", "week", "month", "year"]).default("day"),
+			/**
+			 * The default window for the two sentiment branches.
+			 *
+			 * It was "day", which the news skill contradicts: it asks for news
+			 * up to 90 days old and tells the agent to widen the range when
+			 * coverage is thin. The value is only a fallback — the agent's own
+			 * `timeRange` wins — so the default is a starting window, not a
+			 * ceiling.
+			 */
+			timeRange: z.enum(["day", "week", "month", "year"]).default("month"),
 		}),
 	}),
 	/**

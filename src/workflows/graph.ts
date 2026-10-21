@@ -42,7 +42,8 @@ type GraphAgents = {
 /**
  * Each round is a complete re-invocation of the analyst, so this multiplies
  * one of the most expensive branches rather than adding to it. 0 disables
- * repair.
+ * repair, and a round that would repeat the issues it was given is not
+ * attempted at all (see shouldRepairAnalyst).
  */
 const DEFAULT_MAX_ANALYST_ATTEMPTS = 2;
 
@@ -58,6 +59,43 @@ const RESEARCH_BRANCHES = [
 	"sentimentAgent",
 	"marketAgent",
 ] as const;
+
+/** Set equality; the issue order is stable, but sets are what is compared. */
+function sameIssues(left: string[], right: string[]): boolean {
+	return (
+		left.length === right.length && left.every((issue) => right.includes(issue))
+	);
+}
+
+/**
+ * Whether another analyst round is worth a full agent invocation.
+ *
+ * The repair is conditional on four things, because each of them makes the
+ * re-run free of value:
+ *
+ * - the analyst is the only failing branch — if the financials, sentiment or
+ *   market artifact is also bad, the run still ends at the summary, so fixing
+ *   the analyst changes nothing;
+ * - the issues are repairable — a schema blob names no firm, field or expected
+ *   value, so there is nothing for the model to act on;
+ * - the attempt budget is not spent;
+ * - the last repair made progress — the same instruction produced the same
+ *   failure, so a third identical round is the most expensive way to learn
+ *   nothing.
+ */
+function shouldRepairAnalyst(state: GraphState, maxAttempts: number): boolean {
+	const validation = state.validation;
+	if (!validation) return false;
+	if (!validation.analystRepairable) return false;
+
+	const onlyAnalystFailing =
+		validation.issues.length === validation.analystIssues.length;
+	if (!onlyAnalystFailing) return false;
+
+	if ((state.analystAttempts ?? 0) >= maxAttempts) return false;
+
+	return !sameIssues(validation.analystIssues, state.analystRepairIssues ?? []);
+}
 
 function createGraph(agents: GraphAgents, options: GraphOptions = {}) {
 	const maxAnalystAttempts =
@@ -108,15 +146,11 @@ function createGraph(agents: GraphAgents, options: GraphOptions = {}) {
 		.addEdge([...RESEARCH_BRANCHES], "dataValidation")
 		.addEdge("analystRepair", "dataValidation")
 		.addConditionalEdges("dataValidation", (state: GraphState): Route => {
-			const validation = state.validation;
-			if (!validation) return "summaryAgent";
-			if (
-				validation.analystIssues.length > 0 &&
-				(state.analystAttempts ?? 0) < maxAnalystAttempts
-			) {
+			if (!state.validation) return "summaryAgent";
+			if (shouldRepairAnalyst(state, maxAnalystAttempts)) {
 				return "analystRepair";
 			}
-			if (!validation.pass) return "summaryAgent";
+			if (!state.validation.pass) return "summaryAgent";
 			return "debateAgent";
 		})
 		// The debate orchestrator dispatches the bull, then the bear that

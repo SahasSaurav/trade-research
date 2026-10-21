@@ -1,5 +1,5 @@
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
-import type { TavilySearch } from "@langchain/tavily";
+import type { TavilyExtract, TavilySearch } from "@langchain/tavily";
 import {
 	GEOPOLITICAL_SUBAGENT_DESCRIPTION,
 	GEOPOLITICAL_SYSTEM_PROMPT,
@@ -39,6 +39,7 @@ const SKILL_PERMISSIONS: FilesystemPermission[] = [
 function createGeopoliticalSubagent(deps: {
 	model: BaseChatModel;
 	search: TavilySearch;
+	extract: TavilyExtract;
 }): CompiledSubAgent {
 	const backend = new FilesystemBackend({
 		rootDir: REPO_ROOT,
@@ -50,7 +51,12 @@ function createGeopoliticalSubagent(deps: {
 		description: GEOPOLITICAL_SUBAGENT_DESCRIPTION,
 		runnable: createAgent({
 			model: deps.model,
-			tools: [deps.search],
+			tools: [
+				deps.search,
+				// Search finds the report; this reads it, because the skill
+				// grades every risk on the body of the article.
+				deps.extract,
+			],
 			systemPrompt: GEOPOLITICAL_SYSTEM_PROMPT,
 			responseFormat: toolStrategy(geopoliticalResearchSchema),
 			middleware: [

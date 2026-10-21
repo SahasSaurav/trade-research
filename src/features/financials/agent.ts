@@ -1,5 +1,5 @@
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
-import type { TavilySearch } from "@langchain/tavily";
+import type { TavilyExtract, TavilySearch } from "@langchain/tavily";
 import { FINANCIALS_SYSTEM_PROMPT } from "@src/features/financials/prompt.js";
 import { financialsSchema } from "@src/features/financials/schema.js";
 import {
@@ -30,6 +30,7 @@ const SKILL_PERMISSIONS: FilesystemPermission[] = [
 function createFinancialsAgent(deps: {
 	model: BaseChatModel;
 	search: TavilySearch;
+	extract: TavilyExtract;
 }) {
 	return createDeepAgent({
 		model: deps.model,
@@ -42,6 +43,9 @@ function createFinancialsAgent(deps: {
 			yahooFundamentals,
 			yahooStatements,
 			yahooInsiderTransactions,
+			// Search locates the filing or the IR page; this reads it, so the
+			// figure is checked against the document rather than a snippet.
+			deps.extract,
 		],
 		systemPrompt: FINANCIALS_SYSTEM_PROMPT,
 		responseFormat: toolStrategy(financialsSchema),

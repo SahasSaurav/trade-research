@@ -114,6 +114,7 @@ describe("validateArtifacts", () => {
 		expect(result).toEqual({
 			pass: true,
 			issues: [],
+			analystRepairable: false,
 			analystIssues: [],
 			financialsIssues: [],
 			sentimentIssues: [],
@@ -238,6 +239,51 @@ describe("validateArtifacts", () => {
 			);
 
 			expect(result.analystIssues).toHaveLength(3);
+		});
+
+		it("marks a per-report issue as repairable", () => {
+			// The repair message names the firm, the field and the expected
+			// value, so a re-run has something concrete to act on.
+			const result = validate(
+				goodFinancials,
+				{
+					...goodAnalyst,
+					reports: [goodReport({ rating: "Market Perform" })],
+				},
+				goodSentiment(),
+			);
+
+			expect(result.analystRepairable).toBe(true);
+		});
+
+		it("does not mark a bare schema failure as repairable", () => {
+			// Every report is well formed; the envelope is not. The only issue
+			// is a zod dump, which names nothing the model can fix, so the
+			// graph degrades instead of paying for another analyst run.
+			const result = validate(
+				goodFinancials,
+				{ ...goodAnalyst, ticker: 42 },
+				goodSentiment(),
+			);
+
+			expect(result.analystIssues).toHaveLength(1);
+			expect(result.analystIssues[0]).toMatch(/fails schema/i);
+			expect(result.analystRepairable).toBe(false);
+		});
+
+		it("marks a per-report issue as repairable even when the schema also fails", () => {
+			const result = validate(
+				goodFinancials,
+				{
+					...goodAnalyst,
+					ticker: 42,
+					reports: [goodReport({ rating: "" })],
+				},
+				goodSentiment(),
+			);
+
+			expect(result.analystIssues[0]).toMatch(/no rating/i);
+			expect(result.analystRepairable).toBe(true);
 		});
 	});
 

@@ -138,7 +138,9 @@ describe("loadConfig search sizing", () => {
 			chunksPerSource: 1,
 			searchDepth: "advanced",
 		});
-		expect(config.search.news).toEqual({ maxResults: 5, timeRange: "day" });
+		// The news window is a fallback for the model's own timeRange, so the
+		// default has to match the skill's "up to 90 days" rather than one day.
+		expect(config.search.news).toEqual({ maxResults: 5, timeRange: "month" });
 	});
 
 	it("reads every search knob from the environment", () => {

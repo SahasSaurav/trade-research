@@ -44,12 +44,20 @@ function isProviderError(error: unknown): boolean {
 /**
  * Retries fire only on transient provider errors, never on a bad artifact.
  * Each attempt re-invokes the whole agent, so this multiplies cost.
+ *
+ * `isUsable` adds one more retry: a parsed artifact the caller cannot use is a
+ * silent failure — nothing downstream can tell it from a real finding — so it
+ * is worth one more attempt. Exactly one: if the second attempt is unusable
+ * too, the artifact is returned and the caller degrades on its own terms.
  */
 async function runResearch<T>(
 	invoke: () => Promise<unknown>,
 	schema: z.ZodType<T>,
 	maxAttempts: number = MAX_RESEARCH_ATTEMPTS,
+	isUsable?: (data: T) => boolean,
 ): Promise<ResearchOutcome<T>> {
+	let retriedUnusable = false;
+
 	for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
 		try {
 			const result = schema.safeParse(await invoke());
@@ -58,6 +66,15 @@ async function runResearch<T>(
 					data: null,
 					error: `Agent returned invalid structured data: ${result.error.message}`,
 				};
+			}
+			if (
+				isUsable &&
+				!isUsable(result.data) &&
+				!retriedUnusable &&
+				attempt < maxAttempts
+			) {
+				retriedUnusable = true;
+				continue;
 			}
 			return { data: result.data, error: null };
 		} catch (error) {

@@ -272,6 +272,76 @@ describe("sentiment node", () => {
 		]);
 	});
 
+	it("re-runs the orchestrator once when both subagents failed", async () => {
+		let calls = 0;
+		const agent = {
+			invoke: async () => {
+				calls += 1;
+				return {
+					structuredResponse:
+						calls === 1
+							? research({
+									researchStatus: { news: "failed", geopolitical: "failed" },
+								})
+							: research({ newsSentimentSources: [source()] }),
+				};
+			},
+		} as unknown as ReactAgent<AgentTypeConfig<SentimentResearchData>>;
+
+		const update = await createSentimentNode(agent)(state());
+
+		// Both branches failing is a silent failure otherwise: the artifact is
+		// valid, so the debate would run with no sentiment evidence at all.
+		expect(calls).toBe(2);
+		expect(update.sentiment?.overallSentiment).toBe("positive");
+	});
+
+	it("accepts partial research without a second run", async () => {
+		let calls = 0;
+		const agent = {
+			invoke: async () => {
+				calls += 1;
+				return {
+					structuredResponse: research({
+						newsSentimentSources: [source()],
+						researchStatus: { news: "complete", geopolitical: "failed" },
+					}),
+				};
+			},
+		} as unknown as ReactAgent<AgentTypeConfig<SentimentResearchData>>;
+
+		await createSentimentNode(agent)(state());
+
+		// One failed branch is a designed outcome, not a reason to pay for
+		// another orchestrator run.
+		expect(calls).toBe(1);
+	});
+
+	it("accepts an empty artifact when the second run is empty too", async () => {
+		const empty = research({
+			researchStatus: { news: "failed", geopolitical: "failed" },
+		});
+		let calls = 0;
+		const agent = {
+			invoke: async () => {
+				calls += 1;
+				return { structuredResponse: empty };
+			},
+		} as unknown as ReactAgent<AgentTypeConfig<SentimentResearchData>>;
+
+		const update = await createSentimentNode(agent)(state());
+
+		// Exactly one extra attempt, then the branch degrades rather than
+		// looping: a ticker with no news looks identical to one whose search
+		// failed, so a third attempt would not be better informed.
+		expect(calls).toBe(2);
+		expect(update.sentiment?.overallSentiment).toBe("unknown");
+		expect(update.sentiment?.researchStatus).toEqual({
+			news: "failed",
+			geopolitical: "failed",
+		});
+	});
+
 	it("returns a failed sentiment when the orchestrator errors", async () => {
 		const agent = {
 			invoke: async () => {

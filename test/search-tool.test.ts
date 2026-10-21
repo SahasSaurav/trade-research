@@ -1,5 +1,9 @@
-import { TavilySearchAPIWrapper } from "@langchain/tavily";
 import {
+	TavilyExtractAPIWrapper,
+	TavilySearchAPIWrapper,
+} from "@langchain/tavily";
+import {
+	createExtractTool,
 	createSearchTool,
 	normalizeSearchQuery,
 } from "@src/features/search/tool.js";
@@ -154,5 +158,172 @@ describe("search request", () => {
 			chunksPerSource: 1,
 			searchDepth: "advanced",
 		});
+	});
+});
+
+/**
+ * The page reader is shared by all four research branches, and they overlap on
+ * the same sources. These tests pin the caching that makes the second read free
+ * — and, just as important, that a failure is never cached as if it were a
+ * page.
+ */
+describe("open_url request", () => {
+	type ExtractArgs = { urls: string[] };
+
+	/**
+	 * Subclasses the real wrapper because its helpers are protected, and
+	 * because the real _call then runs: only the HTTP boundary is replaced.
+	 * A URL containing "blocked" comes back as a per-URL failure.
+	 */
+	class FakeExtractWrapper extends TavilyExtractAPIWrapper {
+		readonly calls: ExtractArgs[] = [];
+
+		constructor() {
+			super({ tavilyApiKey: "k" });
+		}
+
+		override async rawResults(params: never) {
+			const { urls } = params as unknown as ExtractArgs;
+			this.calls.push({ urls });
+
+			return {
+				results: urls
+					.filter((url) => !url.includes("blocked"))
+					.map((url) => ({ url, raw_content: `body of ${url}`, images: [] })),
+				failed_results: urls
+					.filter((url) => url.includes("blocked"))
+					.map((url) => ({ url, error: "paywalled" })),
+				response_time: 0.01,
+			};
+		}
+	}
+
+	const ALPHA = "https://example.com/alpha";
+	const BETA = "https://example.com/beta";
+	const GAMMA = "https://example.com/gamma";
+	const BLOCKED = "https://example.com/blocked";
+
+	it("serves a page it has already read without asking again", async () => {
+		const apiWrapper = new FakeExtractWrapper();
+		const extract = createExtractTool({ tavilyApiKey: "k", apiWrapper });
+
+		await extract.invoke({ urls: [ALPHA] });
+		const second = await extract.invoke({ urls: [ALPHA] });
+
+		expect(apiWrapper.calls).toHaveLength(1);
+		expect(second).toContain(`body of ${ALPHA}`);
+	});
+
+	it("fetches only the URLs a partially cached request is missing", async () => {
+		const apiWrapper = new FakeExtractWrapper();
+		const extract = createExtractTool({ tavilyApiKey: "k", apiWrapper });
+
+		await extract.invoke({ urls: [ALPHA, BETA] });
+		const second = await extract.invoke({ urls: [ALPHA, GAMMA] });
+
+		// One batched request for the miss, not one per URL: Tavily bills per
+		// request, so splitting would cost more than the cache saves.
+		expect(apiWrapper.calls[1].urls).toEqual([GAMMA]);
+		expect(second).toContain(`body of ${ALPHA}`);
+		expect(second).toContain(`body of ${GAMMA}`);
+	});
+
+	it("treats a different extract depth as a different page", async () => {
+		const apiWrapper = new FakeExtractWrapper();
+		const extract = createExtractTool({ tavilyApiKey: "k", apiWrapper });
+
+		await extract.invoke({ urls: [ALPHA] });
+		await extract.invoke({ urls: [ALPHA], extractDepth: "advanced" });
+
+		// The depth changes the content, so a cached basic read must not
+		// satisfy an advanced one.
+		expect(apiWrapper.calls).toHaveLength(2);
+	});
+
+	it("keeps the requested URL order when part of the request is cached", async () => {
+		const apiWrapper = new FakeExtractWrapper();
+		const extract = createExtractTool({ tavilyApiKey: "k", apiWrapper });
+
+		await extract.invoke({ urls: [BETA] });
+		const output = await extract.invoke({ urls: [ALPHA, BETA] });
+
+		expect(output.indexOf(ALPHA)).toBeLessThan(output.indexOf(BETA));
+	});
+
+	it("reads a repeated URL once", async () => {
+		const apiWrapper = new FakeExtractWrapper();
+		const extract = createExtractTool({ tavilyApiKey: "k", apiWrapper });
+
+		await extract.invoke({ urls: [ALPHA, ALPHA] });
+
+		expect(apiWrapper.calls[0].urls).toEqual([ALPHA]);
+	});
+
+	it("reports a per-URL failure and does not cache it", async () => {
+		const apiWrapper = new FakeExtractWrapper();
+		const extract = createExtractTool({ tavilyApiKey: "k", apiWrapper });
+
+		const first = await extract.invoke({ urls: [BLOCKED] });
+		await extract.invoke({ urls: [BLOCKED] });
+
+		expect(first).toContain("EXTRACTION_FAILED");
+		// The whole batch failed, so Tavily answered with one error rather
+		// than per-URL failures; the sentinel still has to be actionable.
+		expect(first).toContain(BLOCKED);
+		// A failure is a "not now", not a "never": the next call tries again.
+		expect(apiWrapper.calls).toHaveLength(2);
+	});
+
+	it("serves a cached page even when the rest of the request fails", async () => {
+		const apiWrapper = new FakeExtractWrapper();
+		const extract = createExtractTool({ tavilyApiKey: "k", apiWrapper });
+
+		await extract.invoke({ urls: [ALPHA] });
+		const output = await extract.invoke({ urls: [ALPHA, BLOCKED] });
+
+		expect(apiWrapper.calls[1].urls).toEqual([BLOCKED]);
+		expect(output).toContain(`body of ${ALPHA}`);
+		expect(output).toContain("EXTRACTION_FAILED");
+	});
+
+	it("returns the failure sentinel for an empty URL list", async () => {
+		const apiWrapper = new FakeExtractWrapper();
+		const extract = createExtractTool({ tavilyApiKey: "k", apiWrapper });
+
+		const output = await extract.invoke({ urls: [] });
+
+		expect(output).toContain("EXTRACTION_FAILED");
+		expect(apiWrapper.calls).toHaveLength(0);
+	});
+
+	it("attributes a rewritten URL to the one that was requested", async () => {
+		// A redirect makes Tavily answer with the final URL. The page still
+		// belongs to the URL the agent asked for — and to the cache key it
+		// will ask with next time.
+		class RewritingWrapper extends FakeExtractWrapper {
+			override async rawResults(params: never) {
+				const { urls } = params as unknown as ExtractArgs;
+				this.calls.push({ urls });
+				return {
+					results: urls.map((url) => ({
+						url: "https://example.com/canonical",
+						raw_content: `body of ${url}`,
+						images: [],
+					})),
+					failed_results: [],
+					response_time: 0.01,
+				};
+			}
+		}
+
+		const apiWrapper = new RewritingWrapper();
+		const extract = createExtractTool({ tavilyApiKey: "k", apiWrapper });
+
+		const output = await extract.invoke({ urls: [ALPHA] });
+		await extract.invoke({ urls: [ALPHA] });
+
+		expect(output).toContain(`### ${ALPHA}`);
+		expect(output).toContain(`body of ${ALPHA}`);
+		expect(apiWrapper.calls).toHaveLength(1);
 	});
 });

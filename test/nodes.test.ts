@@ -3,6 +3,7 @@ import {
 	createAnalystNode,
 	createAnalystRepairNode,
 } from "@src/features/analyst/node.js";
+import type { AnalystReportData } from "@src/features/analyst/schema.js";
 import { createDebateNode } from "@src/features/debate/node.js";
 import type { DebateData } from "@src/features/debate/schema.js";
 import { createBearSubagent } from "@src/features/debate/subagents/bear/agent.js";
@@ -37,7 +38,7 @@ function state(overrides: Partial<State> = {}): State {
 	} as State;
 }
 
-const goodAnalyst = {
+const goodAnalyst: AnalystReportData = {
 	ticker: "AAPL",
 	dateChecked: TODAY,
 	reports: [
@@ -427,6 +428,7 @@ describe("analyst repair node", () => {
 				validation: {
 					pass: false,
 					issues: ["no analyst reports returned"],
+					analystRepairable: true,
 					analystIssues: ["no analyst reports returned"],
 					financialsIssues: [],
 					sentimentIssues: [],
@@ -447,6 +449,7 @@ describe("analyst repair node", () => {
 				validation: {
 					pass: false,
 					issues: ["x"],
+					analystRepairable: true,
 					analystIssues: ["x"],
 					financialsIssues: [],
 					sentimentIssues: [],
@@ -458,7 +461,13 @@ describe("analyst repair node", () => {
 		// graph.ts caps repair at MAX_ANALYST_ATTEMPTS = 2, so this counter
 		// is what eventually stops the loop. If it stopped incrementing,
 		// the graph would repair forever.
-		expect(update).toEqual({ analyst: goodAnalyst, analystAttempts: 2 });
+		expect(update).toEqual({
+			analyst: goodAnalyst,
+			analystAttempts: 2,
+			// Recorded so the router can tell a repair that made progress from
+			// one that repeated the issues it was given.
+			analystRepairIssues: ["x"],
+		});
 	});
 
 	it("starts the attempt counter from zero when it was never set", async () => {

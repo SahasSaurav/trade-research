@@ -21,6 +21,8 @@ const WorkflowState = Annotation.Root({
 	validation: Annotation<ValidationResult | undefined>,
 	validationIssues: Annotation<string[]>,
 	analystAttempts: Annotation<number>,
+	/** The analyst issues the pending repair was asked to fix, for progress checks. */
+	analystRepairIssues: Annotation<string[]>,
 	workflowStatus: Annotation<
 		"running" | "insufficient_data" | "invalid_ticker" | "complete"
 	>,

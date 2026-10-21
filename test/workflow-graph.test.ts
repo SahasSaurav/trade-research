@@ -278,11 +278,41 @@ describe("workflow graph", () => {
 		expect(result.decision).toEqual(decision);
 	});
 
-	it("gives up on the analyst after two repair attempts", async () => {
-		// MAX_ANALYST_ATTEMPTS = 2. Without the cap this would loop forever,
-		// since the repair node keeps producing the same bad shape.
+	it("stops repairing once the same issues come back", async () => {
+		// The repair re-runs the same instruction and gets the same failure, so
+		// a second identical round would be a third full analyst invocation
+		// that cannot plausibly say anything new.
 		const { agents, analyst, decisionAgent } = buildAgents({
 			analyst: { ticker: "AAPL", dateChecked: TODAY, reports: [] },
+		});
+
+		const result = await run(agents);
+
+		// One initial call plus one repair, then the repeat ends the loop.
+		expect(analyst.stub.invokeCount).toBe(2);
+		expect(result.analystAttempts).toBe(1);
+		expect(decisionAgent.stub.invokeCount).toBe(0);
+		expect(result.workflowStatus).toBe("insufficient_data");
+	});
+
+	it("stops at the attempt cap when every repair finds a different problem", async () => {
+		// Different issues mean the repair is making progress, so only the cap
+		// ends the loop here. MAX_ANALYST_ATTEMPTS = 2.
+		const report = goodAnalyst.reports[0];
+		const { agents, analyst, decisionAgent } = buildAgents({
+			analyst: [
+				{ ticker: "AAPL", dateChecked: TODAY, reports: [] },
+				{
+					ticker: "AAPL",
+					dateChecked: TODAY,
+					reports: [report, { ...report, reportTitle: "Update" }],
+				},
+				{
+					ticker: "AAPL",
+					dateChecked: TODAY,
+					reports: [{ ...report, sourceUrl: "" }],
+				},
+			],
 		});
 
 		const result = await run(agents);
@@ -291,6 +321,32 @@ describe("workflow graph", () => {
 		expect(analyst.stub.invokeCount).toBe(3);
 		expect(result.analystAttempts).toBe(2);
 		expect(decisionAgent.stub.invokeCount).toBe(0);
+		expect(result.workflowStatus).toBe("insufficient_data");
+	});
+
+	it("does not repair the analyst when another branch has also failed", async () => {
+		// The run cannot reach the debate with the financials broken, so a
+		// repair round would be a full analyst invocation that changes nothing.
+		const { agents, analyst } = buildAgents({
+			analyst: [{ ticker: "AAPL", dateChecked: TODAY, reports: [] }],
+			financials: { ...goodFinancials, sourceUrls: [] },
+		});
+
+		await run(agents);
+
+		expect(analyst.stub.invokeCount).toBe(1);
+	});
+
+	it("does not repair an analyst failure whose only issue is a schema message", async () => {
+		// A zod dump names no firm, field or expected value, so there is no
+		// instruction a re-run could act on. Reported, not retried.
+		const { agents, analyst } = buildAgents({
+			analyst: [{ ...goodAnalyst, ticker: 42 }],
+		});
+
+		const result = await run(agents);
+
+		expect(analyst.stub.invokeCount).toBe(1);
 		expect(result.workflowStatus).toBe("insufficient_data");
 	});
 

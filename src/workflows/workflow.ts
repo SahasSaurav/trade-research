@@ -2,14 +2,17 @@ import type { BaseChatModel } from "@langchain/core/language_models/chat_models"
 import { ChatGoogle } from "@langchain/google";
 import { ChatOllama } from "@langchain/ollama";
 import { ChatOpenAI } from "@langchain/openai";
-import type { TavilySearch } from "@langchain/tavily";
+import type { TavilyExtract, TavilySearch } from "@langchain/tavily";
 import { loadConfig } from "@src/config/config.js";
 import { createAnalystAgent } from "@src/features/analyst/agent.js";
 import { createDebateAgent } from "@src/features/debate/agent.js";
 import { createDecisionAgent } from "@src/features/decision/agent.js";
 import { createFinancialsAgent } from "@src/features/financials/agent.js";
 import { createMarketAgent } from "@src/features/market/agent.js";
-import { createSearchTool } from "@src/features/search/tool.js";
+import {
+	createExtractTool,
+	createSearchTool,
+} from "@src/features/search/tool.js";
 import { createSentimentAgent } from "@src/features/sentiment/agent.js";
 import { createSummaryAgent } from "@src/features/summary/agent.js";
 import { createGraph, type GraphAgents } from "@src/workflows/graph.js";
@@ -18,6 +21,7 @@ type WorkflowDeps = {
 	model: BaseChatModel;
 	referenceSearch: TavilySearch;
 	newsSearch: TavilySearch;
+	extract: TavilyExtract;
 	agents: GraphAgents;
 };
 
@@ -97,18 +101,33 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 			timeRange: config.search.news.timeRange,
 		});
 
+	/**
+	 * One page reader for every branch that cites a URL.
+	 *
+	 * The skills require the agent to read the body of a source before citing
+	 * it, and a search result is a snippet — so without this tool the agent is
+	 * asked to verify something it has no way to verify, and the honest
+	 * failure (a citation whose body was never read) is indistinguishable from
+	 * a real one.
+	 */
+	const extract =
+		deps.extract ??
+		createExtractTool({
+			tavilyApiKey: config.tavily.apiKey,
+		});
+
 	const financialsAgent =
 		deps.agents?.financials ??
-		createFinancialsAgent({ model, search: referenceSearch });
+		createFinancialsAgent({ model, search: referenceSearch, extract });
 	const analystAgent =
 		deps.agents?.analyst ??
-		createAnalystAgent({ model, search: referenceSearch });
+		createAnalystAgent({ model, search: referenceSearch, extract });
 	const sentimentAgent =
 		deps.agents?.sentiment ??
-		createSentimentAgent({ model, search: newsSearch });
+		createSentimentAgent({ model, search: newsSearch, extract });
 	const marketAgent =
 		deps.agents?.market ??
-		createMarketAgent({ model, search: referenceSearch });
+		createMarketAgent({ model, search: referenceSearch, extract });
 	const debateAgent = deps.agents?.debate ?? createDebateAgent({ model });
 	const decisionAgent = deps.agents?.decision ?? createDecisionAgent({ model });
 	const summaryAgent = deps.agents?.summary ?? createSummaryAgent({ model });
@@ -134,6 +153,7 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 		model,
 		referenceSearch,
 		newsSearch,
+		extract,
 		financialsAgent,
 		analystAgent,
 		sentimentAgent,

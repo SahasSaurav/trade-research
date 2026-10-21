@@ -42,6 +42,10 @@ function createAnalystRepairNode(
 		return {
 			analyst: result.structuredResponse,
 			analystAttempts: (state.analystAttempts ?? 0) + 1,
+			// The router compares this with the next validation's issues: an
+			// identical set means the round made no progress, and another
+			// identical round would be a third full analyst run for nothing.
+			analystRepairIssues: state.validation?.analystIssues ?? [],
 		};
 	};
 }

@@ -1,5 +1,5 @@
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
-import type { TavilySearch } from "@langchain/tavily";
+import type { TavilyExtract, TavilySearch } from "@langchain/tavily";
 import {
 	NEWS_SENTIMENT_SUBAGENT_DESCRIPTION,
 	NEWS_SENTIMENT_SYSTEM_PROMPT,
@@ -39,6 +39,7 @@ const SKILL_PERMISSIONS: FilesystemPermission[] = [
 function createNewsSentimentSubagent(deps: {
 	model: BaseChatModel;
 	search: TavilySearch;
+	extract: TavilyExtract;
 }): CompiledSubAgent {
 	const backend = new FilesystemBackend({
 		rootDir: REPO_ROOT,
@@ -50,7 +51,12 @@ function createNewsSentimentSubagent(deps: {
 		description: NEWS_SENTIMENT_SUBAGENT_DESCRIPTION,
 		runnable: createAgent({
 			model: deps.model,
-			tools: [deps.search],
+			tools: [
+				deps.search,
+				// Search finds the article; this reads it, because the skill
+				// forbids citing anything the agent has not opened.
+				deps.extract,
+			],
 			systemPrompt: NEWS_SENTIMENT_SYSTEM_PROMPT,
 			responseFormat: toolStrategy(newsSentimentResearchSchema),
 			middleware: [

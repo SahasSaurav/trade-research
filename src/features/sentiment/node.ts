@@ -36,6 +36,23 @@ function sourceUrlsOf(research: SentimentResearchData): string[] {
 	];
 }
 
+/**
+ * Whether the artifact carries anything the debate can use.
+ *
+ * An orchestrator that lost both subagents still returns a valid, empty
+ * artifact: the schema passes, validation passes, and the debate then argues
+ * with no sentiment evidence at all — indistinguishable from a genuinely quiet
+ * ticker. That is a silent failure, so it is the one case worth a second
+ * orchestrator run. Partial research is a designed outcome, and must not buy
+ * one.
+ */
+function hasUsableResearch(research: SentimentResearchData): boolean {
+	return (
+		research.researchStatus.news === "complete" ||
+		research.researchStatus.geopolitical === "complete"
+	);
+}
+
 function createSentimentNode(
 	agent: ReactAgent<AgentTypeConfig<SentimentResearchData>>,
 	researchAttempts?: number,
@@ -55,6 +72,7 @@ function createSentimentNode(
 				).structuredResponse,
 			sentimentResearchSchema,
 			researchAttempts,
+			hasUsableResearch,
 		);
 
 		if (outcome.error !== null) {

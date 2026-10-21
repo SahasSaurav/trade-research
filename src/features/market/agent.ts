@@ -1,5 +1,5 @@
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
-import type { TavilySearch } from "@langchain/tavily";
+import type { TavilyExtract, TavilySearch } from "@langchain/tavily";
 import { MARKET_SYSTEM_PROMPT } from "@src/features/market/prompt.js";
 import { marketSchema } from "@src/features/market/schema.js";
 import { yahooQuote, yahooTechnicals } from "@src/features/market/tool.js";
@@ -24,6 +24,7 @@ const SKILL_PERMISSIONS: FilesystemPermission[] = [
 function createMarketAgent(deps: {
 	model: BaseChatModel;
 	search: TavilySearch;
+	extract: TavilyExtract;
 }) {
 	return createDeepAgent({
 		model: deps.model,
@@ -34,6 +35,9 @@ function createMarketAgent(deps: {
 			// the independent price check the skill requires.
 			yahooQuote,
 			yahooTechnicals,
+			// Search finds the chart page; this reads it, so the dated close
+			// and the tested level are checked against the page itself.
+			deps.extract,
 		],
 		systemPrompt: MARKET_SYSTEM_PROMPT,
 		responseFormat: toolStrategy(marketSchema),

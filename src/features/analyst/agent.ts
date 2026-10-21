@@ -1,5 +1,5 @@
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
-import type { TavilySearch } from "@langchain/tavily";
+import type { TavilyExtract, TavilySearch } from "@langchain/tavily";
 import { ANALYST_SYSTEM_PROMPT } from "@src/features/analyst/prompt.js";
 import { analystReportSchema } from "@src/features/analyst/schema.js";
 import { yahooAnalystConsensus } from "@src/features/analyst/tool.js";
@@ -24,6 +24,7 @@ const SKILL_PERMISSIONS: FilesystemPermission[] = [
 function createAnalystAgent(deps: {
 	model: BaseChatModel;
 	search: TavilySearch;
+	extract: TavilyExtract;
 }) {
 	return createDeepAgent({
 		model: deps.model,
@@ -33,6 +34,9 @@ function createAnalystAgent(deps: {
 			// rating actions; search is still the only way to read a firm's own
 			// note, which is what the schema records.
 			yahooAnalystConsensus,
+			// Search finds the note, this reads it: the skill grades every
+			// report on the body, so the body has to be readable.
+			deps.extract,
 		],
 		systemPrompt: ANALYST_SYSTEM_PROMPT,
 		responseFormat: toolStrategy(analystReportSchema),

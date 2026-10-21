@@ -1,5 +1,5 @@
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
-import type { TavilySearch } from "@langchain/tavily";
+import type { TavilyExtract, TavilySearch } from "@langchain/tavily";
 import { SENTIMENT_SYSTEM_PROMPT } from "@src/features/sentiment/prompt.js";
 import { sentimentResearchSchema } from "@src/features/sentiment/schema.js";
 import { createGeopoliticalSubagent } from "@src/features/sentiment/subagents/geopolitical/agent.js";
@@ -18,6 +18,7 @@ import { todoListMiddleware, toolStrategy } from "langchain";
 function createSentimentAgent(deps: {
 	model: BaseChatModel;
 	search: TavilySearch;
+	extract: TavilyExtract;
 }) {
 	return createDeepAgent({
 		model: deps.model,

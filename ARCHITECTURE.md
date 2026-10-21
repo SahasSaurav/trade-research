@@ -29,7 +29,7 @@ flowchart TD
 
     financialsAgent & analystAgent & sentimentAgent & marketAgent --> dataValidation["dataValidation"]
 
-    dataValidation -->|"analystIssues & budget left"| analystRepair["analystRepair"]
+    dataValidation -->|"repairable analyst issues, budget left"| analystRepair["analystRepair"]
     analystRepair --> dataValidation
     dataValidation -->|"pass"| debateAgent["debateAgent<br/>dispatches bull → bear"]
     dataValidation -->|"no pass"| summaryAgent["summaryAgent"]
@@ -52,8 +52,14 @@ Edges (from `src/workflows/graph.ts`):
 - `tickerCheck` conditionally routes to `END` on `invalid_ticker`, else to the
   four research agents.
 - The four research agents join at `dataValidation`.
-- `dataValidation` conditionally routes to `analystRepair` (analyst issues, under
-  budget), to `debateAgent` (pass), or to `summaryAgent` (no pass).
+- `dataValidation` conditionally routes to `analystRepair` (repairable analyst
+  issues, under budget, and no repeat of the issues the last repair was given),
+  to `debateAgent` (pass), or to `summaryAgent` (no pass).
+- The repair is conditional because each round is a full analyst invocation:
+  it only runs when the analyst is the **only** failing branch (otherwise the
+  run ends at the summary regardless), when the issues name something the model
+  can act on (per-report fields, not a bare zod dump), and when the previous
+  round made progress.
 - The debate and transforms run as one fixed chain, so the graph — not the model —
   owns the stage order: `debateAgent → decisionAgent → summaryAgent`; inside the
   debate node the orchestrator dispatches the bull, then the bear that rebuts it.
@@ -67,21 +73,22 @@ Every agent node has a `timeout` of `NODE_TIMEOUT_MS` (`99_999` ms).
 `WorkflowState` (`src/workflows/state.ts`) is the single channel object threaded
 through the graph:
 
-| Channel            | Type                                                         | Written by                      |
-| ------------------ | ------------------------------------------------------------ | ------------------------------- |
-| `ticker`           | `string`                                                     | input                           |
-| `tickerValidation` | `TickerValidation`                                           | `tickerCheck`                   |
-| `financials`       | `FinancialsData`                                             | `financialsAgent`               |
-| `analyst`          | `AnalystReportData`                                          | `analystAgent`, `analystRepair` |
-| `sentiment`        | `SentimentData`                                              | `sentimentAgent`                |
-| `market`           | `MarketData`                                                 | `marketAgent`                   |
-| `debate`           | `DebateData`                                                 | `debateAgent`                   |
-| `summary`          | `SummaryData`                                                | `summaryAgent`                  |
-| `validation`       | `ValidationResult`                                           | `dataValidation`                |
-| `validationIssues` | `string[]`                                                   | validation                      |
-| `analystAttempts`  | `number`                                                     | `analystRepair`                 |
-| `workflowStatus`   | `running \| insufficient_data \| invalid_ticker \| complete` | nodes                           |
-| `decision`         | `DecisionData`                                               | `decisionAgent`                 |
+| Channel               | Type                                                         | Written by                      |
+| --------------------- | ------------------------------------------------------------ | ------------------------------- |
+| `ticker`              | `string`                                                     | input                           |
+| `tickerValidation`    | `TickerValidation`                                           | `tickerCheck`                   |
+| `financials`          | `FinancialsData`                                             | `financialsAgent`               |
+| `analyst`             | `AnalystReportData`                                          | `analystAgent`, `analystRepair` |
+| `sentiment`           | `SentimentData`                                              | `sentimentAgent`                |
+| `market`              | `MarketData`                                                 | `marketAgent`                   |
+| `debate`              | `DebateData`                                                 | `debateAgent`                   |
+| `summary`             | `SummaryData`                                                | `summaryAgent`                  |
+| `validation`          | `ValidationResult`                                           | `dataValidation`                |
+| `validationIssues`    | `string[]`                                                   | validation                      |
+| `analystAttempts`     | `number`                                                     | `analystRepair`                 |
+| `analystRepairIssues` | `string[]`                                                   | `analystRepair`                 |
+| `workflowStatus`      | `running \| insufficient_data \| invalid_ticker \| complete` | nodes                           |
+| `decision`            | `DecisionData`                                               | `decisionAgent`                 |
 
 Node names deliberately differ from channel names (`tickerCheck` vs
 `tickerValidation`) — `addNode` throws when a node name collides with a channel.
@@ -208,16 +215,31 @@ backend). Deterministic computation stays in TypeScript tools
 | ↳ `news-sentiment` | `skills/news-sentiment/` |
 | ↳ `geopolitical`   | `skills/geopolitical/`   |
 
-Two Tavily tools (`src/workflows/workflow.ts`) because the filters differ:
+Three web tools come from `src/features/search/tool.ts`, built once in
+`src/workflows/workflow.ts` and shared by the branches:
 
-- **reference search** — no time filter, `searchDepth: advanced`,
+- **reference `search`** — no time filter, `searchDepth: advanced`,
   `chunksPerSource: 1`. For filings/statistics/broker research (financials,
   analyst, market, and `tickerCheck`).
-- **news search** — `timeRange: day`. For the two sentiment subagents.
+- **news `search`** — `timeRange: month` as a **fallback**, not a ceiling: the
+  agent's own `timeRange` wins, because the news skill tells it to widen the
+  window when coverage is thin. For the two sentiment subagents.
+- **`open_url`** (`TavilyExtract`) — reads a page body as markdown, one section
+  per URL, on the analyst, financials, market and both sentiment branches. Every
+  skill requires reading a source before citing it, and a search result is a
+  snippet; without this the agent is asked to verify something it cannot open.
+  A failure is stated per URL (`EXTRACTION_FAILED`), never hidden.
 
-`src/features/search/tool.ts` rewrites `site:` operators into Tavily's
-`include_domains`, because Tavily rejects site-only queries and the retriever
-swallows the error, causing a wasted loop.
+`search` rewrites `site:` operators into Tavily's `include_domains`, because
+Tavily rejects site-only queries and the retriever swallows the error, causing a
+wasted loop.
+
+`open_url` caches reads per URL (`src/utils/url-cache.ts`, TTL + LRU, keyed by
+URL and by the parameters that change the content). One reader instance is
+shared by every branch, so a page one branch opens is free for the others; a
+partially cached request fetches only the missing URLs, in one batch, because
+Tavily bills per request. Failures are never cached: a page that failed once may
+be readable later.
 
 ### Yahoo Finance data tools
 
@@ -285,6 +307,13 @@ failed-sentiment sentinel (`researchStatus` both `failed`) so the run degrades
 rather than aborting. `runResearch` (`src/features/sentiment/research.ts`) retries
 **only transient provider errors** (408/429/5xx, network codes) with exponential
 backoff and validates the result against the zod schema.
+
+One more attempt fires when the artifact parses but carries no usable research
+(both `researchStatus` branches `failed`): that artifact otherwise passes
+validation and the debate runs with no sentiment evidence, indistinguishable from
+a genuinely quiet ticker — the one failure downstream cannot see. Partial research
+is not retried; exactly one extra attempt is spent, and the artifact is accepted
+after it.
 
 ## Configuration and providers
 

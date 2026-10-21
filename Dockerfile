@@ -45,7 +45,8 @@ COPY --from=build /app/dist/src ./dist/src
 # The research agents read their skills from disk at runtime.
 COPY skills ./skills
 
-# Run unprivileged; the job writes nothing to disk.
+# Run unprivileged. The job writes nothing to disk unless CONTEXT_DB_PATH points
+# at a writable volume; /app itself is not one.
 USER node
 
 # Plain Node: the build already resolved the aliases, so no loader is needed.

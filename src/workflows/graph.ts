@@ -1,4 +1,10 @@
-import { END, MemorySaver, START, StateGraph } from "@langchain/langgraph";
+import {
+	END,
+	MemorySaver,
+	START,
+	StateGraph,
+	type BaseCheckpointSaver,
+} from "@langchain/langgraph";
 import type { TavilySearch } from "@langchain/tavily";
 import {
 	createAnalystNode,
@@ -50,6 +56,12 @@ const DEFAULT_MAX_ANALYST_ATTEMPTS = 2;
 type GraphOptions = {
 	maxAnalystAttempts?: number;
 	researchAttempts?: number;
+	/**
+	 * Where a thread's checkpoints go. Defaults to an in-memory saver: state is
+	 * threaded across invocations, but nothing survives the process — so a
+	 * crash costs the whole run. The context store swaps in a file-backed one.
+	 */
+	checkpointer?: BaseCheckpointSaver;
 };
 
 /** The four research branches that run in parallel after ticker validation. */
@@ -161,7 +173,7 @@ function createGraph(agents: GraphAgents, options: GraphOptions = {}) {
 		.addEdge("summaryAgent", END);
 
 	return graphBuilder.compile({
-		checkpointer: new MemorySaver(),
+		checkpointer: options.checkpointer ?? new MemorySaver(),
 	});
 }
 

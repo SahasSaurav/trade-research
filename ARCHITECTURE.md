@@ -93,6 +93,46 @@ through the graph:
 Node names deliberately differ from channel names (`tickerCheck` vs
 `tickerValidation`) — `addNode` throws when a node name collides with a channel.
 
+## Context store
+
+`src/utils/context-store.ts` is the only persistent state, and it is opt-in:
+without `CONTEXT_DB_PATH` a run touches no files. One SQLite file holds
+everything:
+
+| Table                    | Holds                                                           |
+| ------------------------ | --------------------------------------------------------------- |
+| `pages`                  | The `open_url` cache: key, payload, `updated_at` (fetch time)   |
+| `runs`                   | One finished run: ticker, `started_at`, status, provider, model |
+| `artifacts`              | One row per branch artifact of that run, as JSON                |
+| `checkpoints` + `writes` | LangGraph's own schema, written by its SQLite saver             |
+
+Two drivers sit on the file, deliberately: `node:sqlite` for the cache and the
+run record (built in, synchronous, no dependency) and `better-sqlite3` for the
+checkpointer, because LangGraph's saver takes one. WAL and a busy timeout are
+what let both handles coexist.
+
+The checkpointer is what makes a crashed run resumable. `graph.ts` takes the
+saver as an option and falls back to `MemorySaver`; `index.ts` derives the
+thread id from ticker + local day, so a re-run the same day continues from the
+node that failed, and the next day starts clean. A run that finishes deletes its
+thread — checkpoints exist to resume a run, not to remember one.
+
+Every table carries `id`, `created_at`, `updated_at` and `deleted_at`, and a
+delete is a tombstone rather than a lost row: expiring a page, evicting it and
+`clear()` all set `deleted_at`. Uniques therefore exclude tombstones — partial
+indexes on `WHERE deleted_at IS NULL` — so a key written again after its row was
+tombstoned gets a new row and a new id. Reclaiming space is manual:
+`DELETE FROM pages WHERE deleted_at < ?`.
+
+There is no schema version and no migration path. The store is derived data a
+run can rebuild, so a schema change means deleting the file; `IF NOT EXISTS`
+makes opening an existing one a no-op.
+
+The store is derived data and fails open: a write that does not land is a cache
+miss, a page that does not parse is dropped, and only the initial open is loud.
+Nothing in the graph reads `runs` or `artifacts`, so a run with the store off
+produces identical artifacts — that is what keeps runs reproducible.
+
 ## Component boundaries
 
 | Component              | Module                      | Responsibility                                            | Depends on                |
@@ -347,7 +387,8 @@ artifacts, never trusting the summary prose to carry the recommendation.
   a runnable artifact on plain Node — no loader, no TypeScript sources.
 - **Docker:** multi-stage `node:26-alpine` (deps → build → prod-deps → runtime),
   prod deps only, non-root, runs the compiled `dist/src/index.js`. No filesystem
-  state (the checkpointer is an in-memory `MemorySaver`), no ports.
+  state by default: the checkpointer is an in-memory `MemorySaver`, and the
+  optional context store needs a mounted volume to outlive the container.
 
 ## Design decisions
 

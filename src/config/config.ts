@@ -64,6 +64,18 @@ const AppConfigSchema = z.object({
 		analystAttempts: z.coerce.number().int().min(0).max(5).default(2),
 		researchAttempts: z.coerce.number().int().min(1).max(5).default(3),
 	}),
+	/**
+	 * The SQLite context store. Off unless a path is given.
+	 *
+	 * A cache that outlives the process changes what the next run sees, so
+	 * enabling it is a decision rather than a default — and the deployed image
+	 * has no writable volume for it anyway. `pageTtlHours: 0` keeps the run
+	 * record but leaves `open_url` on the in-memory cache.
+	 */
+	store: z.object({
+		path: z.string().min(1).optional(),
+		pageTtlHours: z.coerce.number().min(0).default(12),
+	}),
 });
 
 type AppConfig = z.infer<typeof AppConfigSchema>;
@@ -116,6 +128,10 @@ function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
 		budgets: {
 			analystAttempts: env.BUDGET_ANALYST_ATTEMPTS,
 			researchAttempts: env.BUDGET_RESEARCH_ATTEMPTS,
+		},
+		store: {
+			path: env.CONTEXT_DB_PATH,
+			pageTtlHours: env.CONTEXT_DB_PAGE_TTL_HOURS,
 		},
 	};
 

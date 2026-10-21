@@ -247,6 +247,47 @@ describe("loadConfig budgets", () => {
 	});
 });
 
+describe("loadConfig store", () => {
+	it("defaults to no persistent store", () => {
+		// A cache that outlives the process changes what a second run sees, so
+		// the run is stateless unless someone asks otherwise.
+		expect(loadConfig(env()).store).toEqual({
+			path: undefined,
+			pageTtlHours: 12,
+		});
+	});
+
+	it("reads the path and the page ttl from the environment", () => {
+		const config = loadConfig(
+			env({
+				CONTEXT_DB_PATH: ".cache/context.db",
+				CONTEXT_DB_PAGE_TTL_HOURS: "4",
+			}),
+		);
+
+		expect(config.store).toEqual({
+			path: ".cache/context.db",
+			pageTtlHours: 4,
+		});
+	});
+
+	it("accepts a zero ttl, which keeps the run record but drops persistence", () => {
+		const config = loadConfig(env({ CONTEXT_DB_PAGE_TTL_HOURS: "0" }));
+
+		expect(config.store.pageTtlHours).toBe(0);
+	});
+
+	it("rejects a negative ttl", () => {
+		expect(() => loadConfig(env({ CONTEXT_DB_PAGE_TTL_HOURS: "-1" }))).toThrow(
+			ConfigError,
+		);
+	});
+
+	it("rejects an empty path, which would silently mean no store", () => {
+		expect(() => loadConfig(env({ CONTEXT_DB_PATH: "" }))).toThrow(ConfigError);
+	});
+});
+
 describe("loadConfig ollama numCtx", () => {
 	it("leaves the context window unset by default", () => {
 		// Undefined, not a number: the model's own default has to keep winning

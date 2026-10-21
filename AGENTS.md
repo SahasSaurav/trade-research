@@ -40,6 +40,11 @@ Invariants the pipeline depends on — do not break these:
   parameterised by the node's artifact type. `createAgent` and `createDeepAgent`
   both satisfy it — no widened `any`, no custom wrapper type.
 - Configuration goes through `loadConfig`; never bake secrets or `.env`.
+- Persistence is the opt-in SQLite context store (`src/utils/context-store.ts`):
+  page cache, run record, checkpoints. It is **derived data** — a run must
+  produce the same artifacts with it off, and nothing in the graph may read it
+  as authoritative. Tables we own carry `id`, `created_at`, `updated_at`,
+  `deleted_at`, and deletes are tombstones.
 
 All other conventions — tooling, code/comment style, determinism, failure
 handling, and deep-agent preferences — live in [prefrence.md](prefrence.md).

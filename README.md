@@ -59,18 +59,20 @@ then prints the report.
 
 All via environment variables (`.env`); see `.env.example` for defaults.
 
-| Variable                   | Default                  | Meaning                                         |
-| -------------------------- | ------------------------ | ----------------------------------------------- |
-| `MODEL_PROVIDER`           | `ollama`                 | `ollama` \| `openai` \| `xai` \| `google-genai` |
-| `MODEL_NAME`               | `llama3.2`               | Provider model id                               |
-| `MODEL_TEMPERATURE`        | `0.7`                    | Shared by every agent                           |
-| `OLLAMA_BASE_URL`          | `http://localhost:11434` | Local Ollama endpoint                           |
-| `OLLAMA_NUM_CTX`           | unset                    | Context window override                         |
-| `TAVILY_API_KEY`           | —                        | Search                                          |
-| `SEARCH_REFERENCE_*`       | `5 / 1 / advanced`       | `MAX_RESULTS` / `CHUNKS_PER_SOURCE` / `DEPTH`   |
-| `SEARCH_NEWS_*`            | `5 / month`              | `MAX_RESULTS` / `TIME_RANGE` (a fallback)       |
-| `BUDGET_ANALYST_ATTEMPTS`  | `2`                      | Repair rounds (0 disables)                      |
-| `BUDGET_RESEARCH_ATTEMPTS` | `3`                      | Sentiment attempts, transient errors only       |
+| Variable                    | Default                  | Meaning                                            |
+| --------------------------- | ------------------------ | -------------------------------------------------- |
+| `MODEL_PROVIDER`            | `ollama`                 | `ollama` \| `openai` \| `xai` \| `google-genai`    |
+| `MODEL_NAME`                | `llama3.2`               | Provider model id                                  |
+| `MODEL_TEMPERATURE`         | `0.7`                    | Shared by every agent                              |
+| `OLLAMA_BASE_URL`           | `http://localhost:11434` | Local Ollama endpoint                              |
+| `OLLAMA_NUM_CTX`            | unset                    | Context window override                            |
+| `TAVILY_API_KEY`            | —                        | Search                                             |
+| `SEARCH_REFERENCE_*`        | `5 / 1 / advanced`       | `MAX_RESULTS` / `CHUNKS_PER_SOURCE` / `DEPTH`      |
+| `SEARCH_NEWS_*`             | `5 / month`              | `MAX_RESULTS` / `TIME_RANGE` (a fallback)          |
+| `BUDGET_ANALYST_ATTEMPTS`   | `2`                      | Repair rounds (0 disables)                         |
+| `BUDGET_RESEARCH_ATTEMPTS`  | `3`                      | Sentiment attempts, transient errors only          |
+| `CONTEXT_DB_PATH`           | unset                    | SQLite store: page cache, run record, crash resume |
+| `CONTEXT_DB_PAGE_TTL_HOURS` | `12`                     | `open_url` cache lifetime (0 = run record only)    |
 
 ## Docker
 
@@ -85,9 +87,14 @@ docker run --rm \
 
 Multi-stage `node:26-alpine` image (deps → build → prod-deps → runtime). The runtime
 stage installs production dependencies only — no compiler, no test tooling — and runs
-the compiled `dist/src/index.js` on plain Node. It writes nothing to disk, so there is
-no volume and no port. Run it as a scheduled job (Cloud Run Job / ECS RunTask / K8s
-Job / cron).
+the compiled `dist/src/index.js` on plain Node. It writes nothing to disk by default,
+so there is no volume and no port. Run it as a scheduled job (Cloud Run Job / ECS
+RunTask / K8s Job / cron).
+
+To keep the context store (and resume a crashed job), mount a writable volume and
+point `CONTEXT_DB_PATH` at it, e.g. `-v tr-state:/data -e
+CONTEXT_DB_PATH=/data/context.db`. `better-sqlite3` ships musl prebuilds, so the
+alpine image needs no build tooling for it.
 
 ## Limitations
 

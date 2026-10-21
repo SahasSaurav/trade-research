@@ -1,4 +1,10 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
+
 import { START } from "@langchain/langgraph";
+import { openCheckpointSaver } from "@src/utils/context-store.js";
 import type { GraphAgents } from "@src/workflows/graph.js";
 import { createGraph } from "@src/workflows/graph.js";
 import type { AgentTypeConfig, ReactAgent } from "langchain";
@@ -400,5 +406,92 @@ describe("workflow graph", () => {
 		// if the checkpointer retained it.
 		expect(second.workflowStatus).toBe("complete");
 		expect(second.ticker).toBe("AAPL");
+	});
+});
+
+describe("checkpoint resume", () => {
+	it("resumes a crashed run from the node that crashed", async () => {
+		const dir = mkdtempSync(join(tmpdir(), "checkpoints-"));
+		const path = join(dir, "context.db");
+		const checkpoints = openCheckpointSaver(path);
+		const config = { configurable: { thread_id: "AAPL:2026-10-21" } };
+
+		try {
+			// The first attempt gets all the way to the summary and dies there,
+			// which is where the most expensive work is already done.
+			const crashed = buildAgents();
+			crashed.agents.summary = {
+				invoke: async () => {
+					throw new Error("node crashed");
+				},
+			} as unknown as GraphAgents["summary"];
+
+			await expect(
+				createGraph(crashed.agents, {
+					checkpointer: checkpoints.saver,
+				}).invoke({ ticker: "AAPL" }, config),
+			).rejects.toThrow("node crashed");
+
+			// The checkpoints landed in the store's own file format, not a
+			// sidecar database.
+			const db = new DatabaseSync(path, { readOnly: true });
+			try {
+				const tables = db
+					.prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
+					.all() as { name: string }[];
+				expect(tables.map((table) => table.name)).toEqual(
+					expect.arrayContaining(["checkpoints", "writes"]),
+				);
+			} finally {
+				db.close();
+			}
+
+			// A second process, the same thread: the branches that already
+			// answered are not asked again, and the crash completes.
+			// `null` is what continues a thread — passing input would start a
+			// new turn and re-run the graph from the top.
+			const resumed = buildAgents();
+			const state = (await createGraph(resumed.agents, {
+				checkpointer: checkpoints.saver,
+			}).invoke(null, config)) as Record<string, unknown>;
+
+			expect(state.workflowStatus).toBe("complete");
+			expect(resumed.financials.stub.invokeCount).toBe(0);
+			expect(resumed.analyst.stub.invokeCount).toBe(0);
+			expect(resumed.market.stub.invokeCount).toBe(0);
+			expect(resumed.summaryAgent.stub.invokeCount).toBe(1);
+			// The decision the crashed run had already reached is the one the
+			// resumed run reports, rather than a second call to the decision
+			// agent.
+			expect(resumed.decisionAgent.stub.invokeCount).toBe(0);
+			expect(state.decision).toEqual(decision);
+		} finally {
+			checkpoints.close();
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it("starts clean on a thread it has never seen", async () => {
+		const dir = mkdtempSync(join(tmpdir(), "checkpoints-"));
+		const checkpoints = openCheckpointSaver(join(dir, "context.db"));
+
+		try {
+			const first = buildAgents();
+			await createGraph(first.agents, {
+				checkpointer: checkpoints.saver,
+			}).invoke({ ticker: "AAPL" }, { configurable: { thread_id: "day-1" } });
+
+			const second = buildAgents();
+			await createGraph(second.agents, {
+				checkpointer: checkpoints.saver,
+			}).invoke({ ticker: "AAPL" }, { configurable: { thread_id: "day-2" } });
+
+			// A different day is a different run, so every branch runs again.
+			expect(second.financials.stub.invokeCount).toBe(1);
+			expect(second.decisionAgent.stub.invokeCount).toBe(1);
+		} finally {
+			checkpoints.close();
+			rmSync(dir, { recursive: true, force: true });
+		}
 	});
 });

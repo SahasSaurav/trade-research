@@ -1,5 +1,3 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
@@ -11,6 +9,8 @@ import {
 } from "@src/utils/context-store.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { removeTempDirs, tempDir } from "./helpers.js";
+
 /**
  * The store is derived data: a page it loses is a refetch, a run it loses is a
  * receipt. What these tests pin is the three behaviours that make it safe to
@@ -20,17 +20,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const HOUR = 60 * 60 * 1000;
 
-let tempDirs: string[] = [];
 let stores: ContextStore[] = [];
 
-function tempDir(): string {
-	const dir = mkdtempSync(join(tmpdir(), "context-store-"));
-	tempDirs.push(dir);
-	return dir;
-}
-
 function tempPath(name = "context.db"): string {
-	return join(tempDir(), name);
+	return join(tempDir("context-store-"), name);
 }
 
 function open(path: string, pageTtlMs = 12 * HOUR): ContextStore {
@@ -53,8 +46,7 @@ afterEach(() => {
 		}
 	}
 	stores = [];
-	for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true });
-	tempDirs = [];
+	removeTempDirs();
 	vi.useRealTimers();
 });
 
@@ -265,7 +257,7 @@ describe("context store pages", () => {
 	});
 
 	it("creates the directory the file lives in", () => {
-		const path = join(tempDir(), "nested", "context.db");
+		const path = join(tempDir("context-store-"), "nested", "context.db");
 
 		const store = open(path);
 		store.pageCache<string>().set("k", "body");

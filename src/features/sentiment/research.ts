@@ -1,3 +1,4 @@
+import { errorMessage } from "@src/utils/errors.js";
 import type { z } from "zod";
 
 type ResearchOutcome<T> =
@@ -26,7 +27,7 @@ function isTransientError(error: unknown): boolean {
 		return true;
 	}
 
-	const message = error instanceof Error ? error.message : String(error);
+	const message = errorMessage(error);
 	return /fetch failed|network|timed? ?out|rate.?limit|temporarily unavailable/i.test(
 		message,
 	);
@@ -87,7 +88,7 @@ async function runResearch<T>(
 			if (isProviderError(error)) {
 				return {
 					data: null,
-					error: error instanceof Error ? error.message : String(error),
+					error: errorMessage(error),
 				};
 			}
 			throw error;

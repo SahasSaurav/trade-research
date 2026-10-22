@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 
 import { generateReport } from "@src/report/render.js";
 import { checkpointThreadId } from "@src/utils/context-store.js";
+import { errorMessage } from "@src/utils/errors.js";
 import type { GraphState } from "@src/workflows/state.js";
 import { createWorkflow } from "@src/workflows/workflow.js";
 
@@ -25,7 +26,9 @@ const runConfig = { configurable: { thread_id: threadId } };
 // finished are still in the report.
 const saved = await workflow.getState(runConfig);
 const resumeAt = saved.next ?? [];
-if (resumeAt.length > 0) {
+const resuming = resumeAt.length > 0;
+
+if (resuming) {
 	console.log(`▸ resuming ${ticker} at ${resumeAt.join(", ")}`);
 } else if (checkpoints) {
 	// No pending nodes means there is nothing to resume. Any thread still on
@@ -39,7 +42,7 @@ if (resumeAt.length > 0) {
 // takes minutes, and a silent wait gives no way to tell a slow node from a
 // stuck one. The per-node updates are merged by hand because the stream
 // yields partial state, not the final state that invoke would return.
-const stream = await workflow.stream(resumeAt.length > 0 ? null : { ticker }, {
+const stream = await workflow.stream(resuming ? null : { ticker }, {
 	...runConfig,
 	streamMode: "updates",
 });
@@ -88,8 +91,7 @@ if (store) {
 			},
 		});
 	} catch (error) {
-		const reason = error instanceof Error ? error.message : String(error);
-		console.warn(`could not record the run: ${reason}`);
+		console.warn(`could not record the run: ${errorMessage(error)}`);
 	} finally {
 		store.close();
 	}

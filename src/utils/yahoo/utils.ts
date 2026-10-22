@@ -8,6 +8,7 @@
  * the coercion and the failure text stay testable without a request.
  */
 
+import { errorMessage } from "@src/utils/errors.js";
 import { unavailable } from "@src/utils/yahoo/format.js";
 import { z } from "zod";
 
@@ -36,10 +37,6 @@ function asDate(value: unknown): Date | null {
 		return Number.isNaN(date.getTime()) ? null : date;
 	}
 	return null;
-}
-
-function errorMessage(error: unknown): string {
-	return error instanceof Error ? error.message : String(error);
 }
 
 /**

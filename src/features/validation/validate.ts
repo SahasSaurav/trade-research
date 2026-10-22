@@ -100,36 +100,25 @@ function validateAnalystData(analyst: unknown): {
 	return { issues, repairable };
 }
 
-function validateFinancialsData(financials: unknown): string[] {
-	const issues: string[] = [];
-
-	const parsed = financialsSchema.safeParse(financials);
+/**
+ * The financials and market artifacts promise the same two things — the payload
+ * parses, and it names a source — so one check serves both. The label is what
+ * keeps the issue readable: "market data has no sourceUrls" names the branch
+ * that has to be repaired.
+ */
+function sourcedIssues<T extends { sourceUrls: string[] }>(
+	label: string,
+	schema: z.ZodType<T>,
+	artifact: unknown,
+): string[] {
+	const parsed = schema.safeParse(artifact);
 	if (!parsed.success) {
-		issues.push(`financials data fails schema: ${parsed.error.message}`);
-		return issues;
+		return [`${label} data fails schema: ${parsed.error.message}`];
 	}
 
-	if (parsed.data.sourceUrls.length === 0) {
-		issues.push("financials has no sourceUrls");
-	}
-
-	return issues;
-}
-
-function validateMarketData(market: unknown): string[] {
-	const issues: string[] = [];
-
-	const parsed = marketSchema.safeParse(market);
-	if (!parsed.success) {
-		issues.push(`market data fails schema: ${parsed.error.message}`);
-		return issues;
-	}
-
-	if (parsed.data.sourceUrls.length === 0) {
-		issues.push("market data has no sourceUrls");
-	}
-
-	return issues;
+	return parsed.data.sourceUrls.length === 0
+		? [`${label} data has no sourceUrls`]
+		: [];
 }
 
 function validateSentimentData(sentiment: unknown): string[] {
@@ -155,10 +144,14 @@ function validateArtifacts(
 	sentiment: unknown,
 	market: unknown,
 ): ValidationResult {
-	const financialsIssues = validateFinancialsData(financials);
+	const financialsIssues = sourcedIssues(
+		"financials",
+		financialsSchema,
+		financials,
+	);
 	const analystValidation = validateAnalystData(analyst);
 	const sentimentIssues = validateSentimentData(sentiment);
-	const marketIssues = validateMarketData(market);
+	const marketIssues = sourcedIssues("market", marketSchema, market);
 	const issues = [
 		...financialsIssues,
 		...analystValidation.issues,

@@ -22,6 +22,7 @@ import {
 	openCheckpointSaver,
 	openContextStore,
 } from "@src/utils/context-store.js";
+import { errorMessage } from "@src/utils/errors.js";
 import { createGraph, type GraphAgents } from "@src/workflows/graph.js";
 
 type WorkflowDeps = {
@@ -34,27 +35,39 @@ type WorkflowDeps = {
 	checkpoints: CheckpointStore | null;
 };
 
+type Config = ReturnType<typeof loadConfig>;
+
 /**
  * The store is an optimisation and a record, never the work — so a file that
  * cannot be opened is a warning, not a failed run. The alternative (throw) lets
  * a stale lock or a read-only volume take down a run that would otherwise
  * succeed.
  */
-function openStore(config: ReturnType<typeof loadConfig>): ContextStore | null {
-	if (!config.store.path) return null;
-
+function openOrWarn<T>(
+	what: string,
+	consequence: string,
+	open: () => T,
+): T | null {
 	try {
-		return openContextStore({
-			path: config.store.path,
-			pageTtlMs: config.store.pageTtlHours * 60 * 60 * 1000,
-		});
+		return open();
 	} catch (error) {
-		const reason = error instanceof Error ? error.message : String(error);
 		console.warn(
-			`context store unavailable (${reason}); continuing without persistence`,
+			`${what} unavailable (${errorMessage(error)}); ${consequence}`,
 		);
 		return null;
 	}
+}
+
+function openStore(config: Config): ContextStore | null {
+	const path = config.store.path;
+	if (!path) return null;
+
+	return openOrWarn("context store", "continuing without persistence", () =>
+		openContextStore({
+			path,
+			pageTtlMs: config.store.pageTtlHours * 60 * 60 * 1000,
+		}),
+	);
 }
 
 /**
@@ -64,20 +77,14 @@ function openStore(config: ReturnType<typeof loadConfig>): ContextStore | null {
  * on it would fail the same way.
  */
 function openCheckpoints(
-	config: ReturnType<typeof loadConfig>,
 	store: ContextStore | null,
+	path: string | undefined,
 ): CheckpointStore | null {
-	if (!store || !config.store.path) return null;
+	if (!store || !path) return null;
 
-	try {
-		return openCheckpointSaver(config.store.path);
-	} catch (error) {
-		const reason = error instanceof Error ? error.message : String(error);
-		console.warn(
-			`checkpoint store unavailable (${reason}); a crash will restart the run`,
-		);
-		return null;
-	}
+	return openOrWarn("checkpoint store", "a crash will restart the run", () =>
+		openCheckpointSaver(path),
+	);
 }
 
 /**
@@ -86,7 +93,7 @@ function openCheckpoints(
  * explicitly: a `temperature || default` shortcut reads as correct and
  * silently ignores MODEL_TEMPERATURE on the providers it misses.
  */
-function createModel(config: ReturnType<typeof loadConfig>): BaseChatModel {
+function createModel(config: Config): BaseChatModel {
 	switch (config.model.provider) {
 		case "openai":
 			return new ChatOpenAI({
@@ -133,7 +140,7 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 
 	const checkpoints =
 		deps.checkpoints === undefined
-			? openCheckpoints(config, store)
+			? openCheckpoints(store, config.store.path)
 			: deps.checkpoints;
 
 	/**

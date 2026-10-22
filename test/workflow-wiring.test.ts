@@ -1,15 +1,13 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DatabaseSync } from "node:sqlite";
 
 import { createWorkflow } from "@src/workflows/workflow.js";
 import { describe, expect, it } from "vitest";
 
+import { removeTempDirs, tableNames, tempDir } from "./helpers.js";
+
 describe("workflow wiring", () => {
 	it("opens the store and the checkpointer from CONTEXT_DB_PATH", async () => {
-		const dir = mkdtempSync(join(tmpdir(), "wiring-"));
-		const path = join(dir, "context.db");
+		const path = join(tempDir("wiring-"), "context.db");
 		const previous = process.env.CONTEXT_DB_PATH;
 		process.env.CONTEXT_DB_PATH = path;
 		process.env.TAVILY_API_KEY ??= "test-key";
@@ -30,20 +28,12 @@ describe("workflow wiring", () => {
 			store?.close();
 			checkpoints?.close();
 
-			const db = new DatabaseSync(path, { readOnly: true });
-			try {
-				const tables = (
-					db
-						.prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
-						.all() as { name: string }[]
-				).map((table) => table.name);
-				expect(tables).toEqual(expect.arrayContaining(["pages", "runs"]));
-			} finally {
-				db.close();
-			}
+			expect(tableNames(path)).toEqual(
+				expect.arrayContaining(["pages", "runs"]),
+			);
 		} finally {
 			process.env.CONTEXT_DB_PATH = previous;
-			rmSync(dir, { recursive: true, force: true });
+			removeTempDirs();
 		}
 	}, 30_000);
 });

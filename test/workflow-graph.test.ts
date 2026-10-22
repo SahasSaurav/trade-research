@@ -1,7 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DatabaseSync } from "node:sqlite";
 
 import { START } from "@langchain/langgraph";
 import { openCheckpointSaver } from "@src/utils/context-store.js";
@@ -9,6 +6,8 @@ import type { GraphAgents } from "@src/workflows/graph.js";
 import { createGraph } from "@src/workflows/graph.js";
 import type { AgentTypeConfig, ReactAgent } from "langchain";
 import { describe, expect, it } from "vitest";
+
+import { removeTempDirs, tableNames, tempDir } from "./helpers.js";
 
 /**
  * These tests inject stub agents so the graph runs end to end with no network
@@ -411,8 +410,7 @@ describe("workflow graph", () => {
 
 describe("checkpoint resume", () => {
 	it("resumes a crashed run from the node that crashed", async () => {
-		const dir = mkdtempSync(join(tmpdir(), "checkpoints-"));
-		const path = join(dir, "context.db");
+		const path = join(tempDir("checkpoints-"), "context.db");
 		const checkpoints = openCheckpointSaver(path);
 		const config = { configurable: { thread_id: "AAPL:2026-10-21" } };
 
@@ -434,17 +432,9 @@ describe("checkpoint resume", () => {
 
 			// The checkpoints landed in the store's own file format, not a
 			// sidecar database.
-			const db = new DatabaseSync(path, { readOnly: true });
-			try {
-				const tables = db
-					.prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
-					.all() as { name: string }[];
-				expect(tables.map((table) => table.name)).toEqual(
-					expect.arrayContaining(["checkpoints", "writes"]),
-				);
-			} finally {
-				db.close();
-			}
+			expect(tableNames(path)).toEqual(
+				expect.arrayContaining(["checkpoints", "writes"]),
+			);
 
 			// A second process, the same thread: the branches that already
 			// answered are not asked again, and the crash completes.
@@ -467,13 +457,14 @@ describe("checkpoint resume", () => {
 			expect(state.decision).toEqual(decision);
 		} finally {
 			checkpoints.close();
-			rmSync(dir, { recursive: true, force: true });
+			removeTempDirs();
 		}
 	});
 
 	it("starts clean on a thread it has never seen", async () => {
-		const dir = mkdtempSync(join(tmpdir(), "checkpoints-"));
-		const checkpoints = openCheckpointSaver(join(dir, "context.db"));
+		const checkpoints = openCheckpointSaver(
+			join(tempDir("checkpoints-"), "context.db"),
+		);
 
 		try {
 			const first = buildAgents();
@@ -491,7 +482,7 @@ describe("checkpoint resume", () => {
 			expect(second.decisionAgent.stub.invokeCount).toBe(1);
 		} finally {
 			checkpoints.close();
-			rmSync(dir, { recursive: true, force: true });
+			removeTempDirs();
 		}
 	});
 });

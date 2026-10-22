@@ -216,11 +216,11 @@ function sqlitePageCache<T>(
 		get(key) {
 			try {
 				const row = select.get(key, cutoff()) as
-					| { payload?: string }
+					| { payload: string }
 					| undefined;
 				// A row that no longer parses is a miss, not a render error: the
 				// value shape changed under the ttl, and the next read refills it.
-				return row?.payload ? (JSON.parse(row.payload) as T) : undefined;
+				return row ? (JSON.parse(row.payload) as T) : undefined;
 			} catch {
 				return undefined;
 			}
@@ -261,6 +261,8 @@ function openContextStore(options: ContextStoreOptions): ContextStore {
 	db.exec("PRAGMA foreign_keys = ON");
 	db.exec(SCHEMA);
 
+	const maxPageEntries = options.maxPageEntries ?? DEFAULT_MAX_PAGE_ENTRIES;
+
 	const insertRun = db.prepare(
 		`INSERT INTO runs
 		 (id, ticker, started_at, status, provider, model,
@@ -284,11 +286,7 @@ function openContextStore(options: ContextStoreOptions): ContextStore {
 
 	return {
 		pageCache<T>(): UrlCache<T> {
-			return sqlitePageCache<T>(
-				db,
-				options.pageTtlMs,
-				options.maxPageEntries ?? DEFAULT_MAX_PAGE_ENTRIES,
-			);
+			return sqlitePageCache<T>(db, options.pageTtlMs, maxPageEntries);
 		},
 		recordRun(run) {
 			const now = Date.now();

@@ -237,10 +237,38 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 	 */
 	const history = store ? createHistoryBackend(store.history) : undefined;
 
+	/**
+	 * One client per branch. `MODEL_<AGENT>` names a model for that branch; the
+	 * shared model answers for every branch that does not. A subagent has no key
+	 * of its own — it runs on its orchestrator's client, because the orchestrator
+	 * is what dispatches it.
+	 */
+	const financialsModel = config.agents.financials
+		? createModel(config, config.agents.financials)
+		: model;
+	const analystModel = config.agents.analyst
+		? createModel(config, config.agents.analyst)
+		: model;
+	const marketModel = config.agents.market
+		? createModel(config, config.agents.market)
+		: model;
+	const sentimentModel = config.agents.sentiment
+		? createModel(config, config.agents.sentiment)
+		: model;
+	const debateModel = config.agents.debate
+		? createModel(config, config.agents.debate)
+		: model;
+	const decisionModel = config.agents.decision
+		? createModel(config, config.agents.decision)
+		: model;
+	const summaryModel = config.agents.summary
+		? createModel(config, config.agents.summary)
+		: model;
+
 	const financialsAgent =
 		deps.agents?.financials ??
 		createFinancialsAgent({
-			model,
+			model: financialsModel,
 			search: referenceSearch,
 			extract,
 			compaction,
@@ -250,7 +278,7 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 	const analystAgent =
 		deps.agents?.analyst ??
 		createAnalystAgent({
-			model,
+			model: analystModel,
 			search: referenceSearch,
 			extract,
 			compaction,
@@ -259,20 +287,27 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 		});
 	const sentimentAgent =
 		deps.agents?.sentiment ??
-		createSentimentAgent({ model, search: newsSearch, extract });
+		createSentimentAgent({
+			model: sentimentModel,
+			search: newsSearch,
+			extract,
+		});
 	const marketAgent =
 		deps.agents?.market ??
 		createMarketAgent({
-			model,
+			model: marketModel,
 			search: referenceSearch,
 			extract,
 			compaction,
 			history,
 			summarizer,
 		});
-	const debateAgent = deps.agents?.debate ?? createDebateAgent({ model });
-	const decisionAgent = deps.agents?.decision ?? createDecisionAgent({ model });
-	const summaryAgent = deps.agents?.summary ?? createSummaryAgent({ model });
+	const debateAgent =
+		deps.agents?.debate ?? createDebateAgent({ model: debateModel });
+	const decisionAgent =
+		deps.agents?.decision ?? createDecisionAgent({ model: decisionModel });
+	const summaryAgent =
+		deps.agents?.summary ?? createSummaryAgent({ model: summaryModel });
 
 	const workflow = createGraph(
 		{
@@ -296,7 +331,10 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 		model,
 		store,
 		checkpoints,
-		/** What the run record says it ran on. */
+		/**
+		 * What the run record says it ran on. It names the shared model; a
+		 * branch override lives in the environment, not in the record.
+		 */
 		runMeta: { provider: config.model.provider, model: config.model.name },
 		referenceSearch,
 		newsSearch,

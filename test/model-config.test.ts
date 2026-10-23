@@ -3,9 +3,10 @@ import { createModel } from "@src/workflows/workflow.js";
 import { describe, expect, it } from "vitest";
 
 /**
- * The six agents share one model instance, so anything the factory drops is
- * dropped pipeline-wide. Two of the four provider branches used to omit
- * temperature, leaving MODEL_TEMPERATURE ignored on openai and xai.
+ * The shared model answers for every branch that does not name its own, so
+ * anything the factory drops is dropped pipeline-wide. Two of the four provider
+ * branches used to omit temperature, leaving MODEL_TEMPERATURE ignored on openai
+ * and xai.
  *
  * createModel is exercised directly because createWorkflow compiles the graph,
  * which would drag an unrelated failure into a test about model construction.
@@ -103,5 +104,33 @@ describe("createModel", () => {
 		) as unknown as { model: string };
 
 		expect(model.model).toBe("gemma4:12b-mlx");
+	});
+
+	it("builds a branch override on the provider it names", () => {
+		// A branch override switches provider as well as model, so the client
+		// class has to follow the override rather than MODEL_PROVIDER.
+		const config = loadConfig(
+			env({ MODEL_PROVIDER: "ollama", MODEL_DECISION: "openai/gpt-5" }),
+		);
+
+		const model = createModel(config, config.agents.decision) as unknown as {
+			model: string;
+		};
+
+		expect(model.constructor.name).toBe("ChatOpenAI");
+		expect(model.model).toBe("gpt-5");
+	});
+
+	it("keeps the shared provider for a bare branch id", () => {
+		const config = loadConfig(
+			env({ MODEL_PROVIDER: "ollama", MODEL_SUMMARY: "llama3.2:1b" }),
+		);
+
+		const model = createModel(config, config.agents.summary) as unknown as {
+			model: string;
+		};
+
+		expect(model.constructor.name).toBe("ChatOllama");
+		expect(model.model).toBe("llama3.2:1b");
 	});
 });

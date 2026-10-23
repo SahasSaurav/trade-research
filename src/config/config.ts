@@ -36,6 +36,24 @@ const AppConfigSchema = z.object({
 		name: z.string().min(1).default("llama3.2"),
 		temperature: z.coerce.number().min(0).max(2).default(0.7),
 	}),
+	/**
+	 * Per-branch model overrides.
+	 *
+	 * The shared model is the default. A branch names its own when the work
+	 * differs in kind: judgment and synthesis want the strongest model, a
+	 * single-pass narration or a summary does not. Only the seven top-level
+	 * agents are configurable — a subagent runs on its orchestrator's model,
+	 * because the orchestrator is what dispatches it.
+	 */
+	agents: z.object({
+		financials: MODEL_REF.optional(),
+		analyst: MODEL_REF.optional(),
+		market: MODEL_REF.optional(),
+		sentiment: MODEL_REF.optional(),
+		debate: MODEL_REF.optional(),
+		decision: MODEL_REF.optional(),
+		summary: MODEL_REF.optional(),
+	}),
 	google: z.object({
 		apiKey: z.string().min(1),
 	}),
@@ -143,6 +161,15 @@ function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
 			provider: env.MODEL_PROVIDER,
 			name: env.MODEL_NAME,
 			temperature: env.MODEL_TEMPERATURE,
+		},
+		agents: {
+			financials: env.MODEL_FINANCIALS,
+			analyst: env.MODEL_ANALYST,
+			market: env.MODEL_MARKET,
+			sentiment: env.MODEL_SENTIMENT,
+			debate: env.MODEL_DEBATE,
+			decision: env.MODEL_DECISION,
+			summary: env.MODEL_SUMMARY,
 		},
 		google: {
 			apiKey: env.GOOGLE_API_KEY,

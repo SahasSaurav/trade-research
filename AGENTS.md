@@ -105,7 +105,7 @@ rationale and [prefrence.md](prefrence.md) for the conversion rules.
 
 ```ts
 createDeepAgent({
-	model, // one shared model instance
+	model, // the branch's model: shared unless MODEL_<AGENT> overrides
 	tools: [search, computeValuationMultiples], // optional
 	systemPrompt: FINANCIALS_SYSTEM_PROMPT,
 	responseFormat: toolStrategy(financialsSchema), // structured output

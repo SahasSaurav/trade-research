@@ -324,6 +324,45 @@ describe("loadConfig context", () => {
 	});
 });
 
+describe("loadConfig agent models", () => {
+	it("leaves every branch on the shared model by default", () => {
+		expect(loadConfig(env()).agents).toEqual({
+			financials: undefined,
+			analyst: undefined,
+			market: undefined,
+			sentiment: undefined,
+			debate: undefined,
+			decision: undefined,
+			summary: undefined,
+		});
+	});
+
+	it("reads a branch model and leaves the other branches alone", () => {
+		const config = loadConfig(env({ MODEL_DECISION: "openai/gpt-5" }));
+
+		expect(config.agents.decision).toEqual({
+			provider: "openai",
+			name: "gpt-5",
+		});
+		expect(config.agents.market).toBeUndefined();
+	});
+
+	it("reads a bare branch model id on the shared provider", () => {
+		const config = loadConfig(env({ MODEL_SUMMARY: "llama3.2:1b" }));
+
+		expect(config.agents.summary).toEqual({
+			provider: undefined,
+			name: "llama3.2:1b",
+		});
+	});
+
+	it("rejects a branch model with no id after the provider", () => {
+		expect(() => loadConfig(env({ MODEL_ANALYST: "ollama/" }))).toThrow(
+			ConfigError,
+		);
+	});
+});
+
 describe("loadConfig store", () => {
 	it("defaults to no persistent store", () => {
 		// A cache that outlives the process changes what a second run sees, so

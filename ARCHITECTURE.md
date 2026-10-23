@@ -414,13 +414,20 @@ after it.
 ## Configuration and providers
 
 `src/config/config.ts` validates the environment with zod. `createModel`
-(`src/workflows/workflow.ts`) builds **one shared model instance** for every agent,
-switching on `MODEL_PROVIDER`:
+(`src/workflows/workflow.ts`) builds the client from `MODEL_PROVIDER`, switching
+on the provider:
 
 - `openai` → `ChatOpenAI`
 - `xai` → `ChatOpenAI` with `baseURL: https://api.x.ai/v1`
 - `google-genai` → `ChatGoogle`
 - default → `ChatOllama`
+
+One client is built for the shared model and reused by every branch that does not
+name its own. `MODEL_<AGENT>` (`MODEL_FINANCIALS`, `MODEL_ANALYST`,
+`MODEL_MARKET`, `MODEL_SENTIMENT`, `MODEL_DEBATE`, `MODEL_DECISION`,
+`MODEL_SUMMARY`) overrides a single top-level agent, as `provider/model` or a bare
+id on the shared provider. The four subagents have no key of their own: they run
+on their orchestrator's client, because the orchestrator is what dispatches them.
 
 Temperature is passed explicitly in every branch — a `temperature || default`
 shortcut would silently ignore `MODEL_TEMPERATURE` on the providers it misses.

@@ -64,6 +64,7 @@ All via environment variables (`.env`); see `.env.example` for defaults.
 | `MODEL_PROVIDER`                 | `ollama`                 | `ollama` \| `openai` \| `xai` \| `google-genai`      |
 | `MODEL_NAME`                     | `llama3.2`               | Provider model id                                    |
 | `MODEL_TEMPERATURE`              | `0.7`                    | Shared by every agent                                |
+| `MODEL_<AGENT>`                  | unset                    | Per-branch model, e.g. `MODEL_DECISION=openai/gpt-5` |
 | `OLLAMA_BASE_URL`                | `http://localhost:11434` | Local Ollama endpoint                                |
 | `OLLAMA_NUM_CTX`                 | unset                    | Context window override                              |
 | `TAVILY_API_KEY`                 | —                        | Search                                               |

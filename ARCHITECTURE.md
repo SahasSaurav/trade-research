@@ -298,6 +298,15 @@ partially cached request fetches only the missing URLs, in one batch, because
 Tavily bills per request. Failures are never cached: a page that failed once may
 be readable later.
 
+The cache holds the **whole** page; what the model sees is one 12k-character
+window of it (~3k tokens), with a line naming the range and the offset that
+continues it. A tool result is re-sent on every later turn, so a 10-K returned
+whole would be paid for again on each of them; a window is paid once. Paging is
+a local cut over the cached text, so reading further costs no request, and a
+remainder under 2k characters is absorbed rather than forcing a second call. A
+page that fits the window is returned unchanged — no range line, no extra
+tokens.
+
 ### Yahoo Finance data tools
 
 Search answers "what is being said"; the Yahoo tools answer "what are the

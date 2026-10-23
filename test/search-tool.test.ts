@@ -326,4 +326,117 @@ describe("open_url request", () => {
 		expect(output).toContain(`body of ${ALPHA}`);
 		expect(apiWrapper.calls).toHaveLength(1);
 	});
+
+	/**
+	 * Every tool result is re-sent on each later turn, so a page longer than the
+	 * window is handed over in slices. These tests pin the two things that make
+	 * paging cheap: the cut is local (one fetch covers every slice) and the
+	 * common case of a page that fits is unchanged.
+	 */
+	describe("paging a long page", () => {
+		const LONG = "https://example.com/10-k";
+		// Distinct thirds, so a slice can be told from the text it left behind.
+		const BODY = `${"a".repeat(12_000)}${"b".repeat(12_000)}${"c".repeat(6_000)}`;
+
+		class LongPageWrapper extends FakeExtractWrapper {
+			override async rawResults(params: never) {
+				const { urls } = params as unknown as ExtractArgs;
+				this.calls.push({ urls });
+				return {
+					results: urls.map((url) => ({
+						url,
+						raw_content: BODY,
+						images: [],
+					})),
+					failed_results: [],
+					response_time: 0.01,
+				};
+			}
+		}
+
+		function reader() {
+			const apiWrapper = new LongPageWrapper();
+			return {
+				apiWrapper,
+				extract: createExtractTool({ tavilyApiKey: "k", apiWrapper }),
+			};
+		}
+
+		it("returns one window and names the offset that continues it", async () => {
+			const { extract } = reader();
+
+			const output = await extract.invoke({ urls: [LONG] });
+
+			expect(output).toContain("characters 0-12000 of 30000");
+			expect(output).toContain("offset 12000");
+			expect(output).toContain("a".repeat(100));
+			expect(output).not.toContain("b".repeat(100));
+		});
+
+		it("reads the next window from the cached page, not from Tavily", async () => {
+			const { apiWrapper, extract } = reader();
+
+			await extract.invoke({ urls: [LONG] });
+			const second = await extract.invoke({ urls: [LONG], offset: 12_000 });
+
+			// The offset must survive schema parsing or the second call would
+			// silently return the first window again.
+			expect(second).toContain("characters 12000-24000 of 30000");
+			expect(second).toContain("b".repeat(100));
+			expect(apiWrapper.calls).toHaveLength(1);
+		});
+
+		it("returns a page that fits the window exactly as before", async () => {
+			const extract = createExtractTool({
+				tavilyApiKey: "k",
+				apiWrapper: new FakeExtractWrapper(),
+			});
+
+			const output = await extract.invoke({ urls: [ALPHA] });
+
+			// No range line: the paging affordance only appears where it is
+			// needed, so an ordinary read costs nothing extra.
+			expect(output).toBe(`### ${ALPHA}\n\nbody of ${ALPHA}`);
+		});
+
+		it("absorbs a short remainder rather than forcing another call", async () => {
+			class TailWrapper extends FakeExtractWrapper {
+				override async rawResults(params: never) {
+					const { urls } = params as unknown as ExtractArgs;
+					this.calls.push({ urls });
+					return {
+						results: urls.map((url) => ({
+							url,
+							// 12k window plus a 1k tail: no second call is worth it.
+							raw_content: `${"a".repeat(12_000)}${"z".repeat(1_000)}`,
+							images: [],
+						})),
+						failed_results: [],
+						response_time: 0.01,
+					};
+				}
+			}
+
+			const extract = createExtractTool({
+				tavilyApiKey: "k",
+				apiWrapper: new TailWrapper(),
+			});
+
+			const output = await extract.invoke({ urls: [LONG] });
+
+			expect(output).toContain("z".repeat(1_000));
+			expect(output).not.toContain("offset");
+		});
+
+		it("says so when the offset is past the end of the page", async () => {
+			const { extract } = reader();
+
+			const output = await extract.invoke({ urls: [LONG], offset: 99_999 });
+
+			// Silence here would look like an empty page; the agent has to know
+			// it over-read, not that the source went blank.
+			expect(output).toContain("past the end of this page");
+			expect(output).toContain("30000 characters");
+		});
+	});
 });

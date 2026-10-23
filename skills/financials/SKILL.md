@@ -43,6 +43,10 @@ it becomes correct.
 | `search`                     | The SEC filing, company IR, and a second source             |
 | `open_url`                   | The body of that page: the filing line, the IR release text |
 
+A filing is long, so `open_url` returns it in slices: the result states the
+character range and the offset that continues it. Page only until you have the
+line you came for, then stop — reading a 10-K end to end costs more than the run.
+
 Yahoo is one vendor, not the truth. Every figure the skill marks as
 reconciliation-sensitive still needs a second source. Where Yahoo and a filing
 disagree by more than the tolerance in Step 8, follow the rule and record the

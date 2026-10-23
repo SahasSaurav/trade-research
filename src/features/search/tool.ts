@@ -4,6 +4,10 @@ import type {
 } from "@langchain/tavily";
 import { TavilyExtract, TavilySearch } from "@langchain/tavily";
 import { createUrlCache, type UrlCache } from "@src/utils/url-cache.js";
+// Tavily declares its tool schema with zod v3, so the offset this tool adds has
+// to be built with the same copy or `.extend` rejects it. The rest of the repo
+// is on zod v4, which is why the import is explicit rather than bare.
+import { z } from "zod/v3";
 
 /**
  * The two ways an agent reaches the web.
@@ -128,7 +132,10 @@ function createSearchTool(
 	return search;
 }
 
-type TavilyExtractInput = Parameters<TavilyExtract["_call"]>[0];
+type TavilyExtractInput = Parameters<TavilyExtract["_call"]>[0] & {
+	/** Added by this tool's schema; Tavily itself has no such field. */
+	offset?: number;
+};
 
 const EXTRACT_FAILED =
 	"EXTRACTION_FAILED: no page could be read. The URL may be paywalled, blocked by robots, or gone. Do not cite it from a search snippet — find another source, or report the figure as unverified.";
@@ -148,6 +155,70 @@ type ExtractedPage = {
 	url: string;
 	raw_content: string;
 };
+
+/**
+ * How much of a page one call hands to the model.
+ *
+ * The cache keeps the whole page; the tool result returns a window of it. Every
+ * tool result is re-sent on each later turn of the run, so a filing read whole
+ * costs its own length again on every remaining call — and a 10-K is hundreds
+ * of thousands of characters. Twelve thousand is roughly three thousand tokens:
+ * comfortably more than a news article or a press release, and a ceiling on
+ * everything longer.
+ */
+const PAGE_WINDOW_CHARS = 12_000;
+
+/**
+ * A remainder this short is returned with the window instead of forcing a
+ * second call for a tail too small to be worth a round trip.
+ */
+const PAGE_TAIL_CHARS = 2_000;
+
+/** Where a window sits in a page, and whether anything follows it. */
+type PageWindow = {
+	text: string;
+	start: number;
+	end: number;
+	/** True when the window already reaches the end of the page. */
+	complete: boolean;
+};
+
+/** The window of `content` that a call asking for `offset` returns. */
+function pageWindow(content: string, offset: number): PageWindow {
+	const start = Math.min(Math.max(offset, 0), content.length);
+	let end = Math.min(start + PAGE_WINDOW_CHARS, content.length);
+	// Absorb a short tail: paging for the last few hundred characters costs
+	// more than it saves.
+	if (content.length - end <= PAGE_TAIL_CHARS) end = content.length;
+
+	return {
+		text: content.slice(start, end),
+		start,
+		end,
+		complete: end >= content.length,
+	};
+}
+
+/**
+ * Says which characters this call returned and what continues the page.
+ *
+ * Without it a cut page is indistinguishable from a short one, and the agent
+ * would treat a truncated filing as the whole document.
+ */
+function describeWindow(
+	window: PageWindow,
+	total: number,
+	requestedOffset: number,
+): string {
+	if (requestedOffset >= total) {
+		return `_Offset ${requestedOffset} is past the end of this page: it is ${total} characters long._`;
+	}
+
+	const range = `characters ${window.start}-${window.end} of ${total}`;
+	return window.complete
+		? `_Returning ${range}; this is the end of the page._`
+		: `_Returning ${range}. Call open_url again with this URL and offset ${window.end} to read the rest._`;
+}
 
 type ExtractOutcome =
 	| { ok: true; page: ExtractedPage }
@@ -250,8 +321,12 @@ function attributeExtractions(
  * A failed extraction is stated, never hidden: the agent has to know the page
  * could not be read, because a source it did not read is a source it must not
  * cite.
+ *
+ * A page that fits in one window is returned as it is — the common case stays
+ * exactly as before. Only a cut page (or a request resuming one) carries the
+ * range line, so paging costs tokens only where it saves them.
  */
-function formatExtractResults(payload: unknown): string {
+function formatExtractResults(payload: unknown, offset = 0): string {
 	if (!payload || typeof payload !== "object") return EXTRACT_FAILED;
 
 	const { results, failed_results: failed } = payload as {
@@ -264,15 +339,24 @@ function formatExtractResults(payload: unknown): string {
 	for (const result of results ?? []) {
 		const url = result.url ?? "(unknown url)";
 		const content = result.raw_content?.trim();
-		sections.push(
-			content
-				? [`### ${url}`, "", content].join("\n")
-				: [
-						`### ${url}`,
-						"",
-						"EXTRACTION_EMPTY: the page was fetched but returned no readable text.",
-					].join("\n"),
-		);
+		if (!content) {
+			sections.push(
+				[
+					`### ${url}`,
+					"",
+					"EXTRACTION_EMPTY: the page was fetched but returned no readable text.",
+				].join("\n"),
+			);
+			continue;
+		}
+
+		const window = pageWindow(content, offset);
+		const lines = [`### ${url}`];
+		if (offset > 0 || !window.complete) {
+			lines.push("", describeWindow(window, content.length, offset));
+		}
+		if (window.text) lines.push("", window.text);
+		sections.push(lines.join("\n"));
 	}
 
 	for (const failure of failed ?? []) {
@@ -301,6 +385,9 @@ function formatExtractResults(payload: unknown): string {
  * second branch to ask for a page gets it without a request. A partially cached
  * request fetches only the URLs it is missing, in one batch, because Tavily
  * bills per request rather than per URL.
+ *
+ * The cache holds the whole page, so paging through a long one is free: the
+ * window is cut locally from the cached text, not re-fetched.
  */
 function createExtractTool(
 	params: TavilyExtractAPIRetrieverFields & {
@@ -313,8 +400,24 @@ function createExtractTool(
 		...toolParams,
 		name: EXTRACT_TOOL_NAME,
 		description:
-			"Open one or more web pages and return their full text. Use it to read a source before citing it: search finds the page, this returns the body you verify the claim against. Pass only the URLs you actually need — each one is billed and re-sent on every later model call. A URL already opened in this run is served from cache.",
+			"Open one or more web pages and return their text. Use it to read a source before citing it: search finds the page, this returns the body you verify the claim against. A long page comes back in slices — the result states which characters you got and the offset that continues it, so call again with that offset to read further. Pass only the URLs you actually need — each one is billed and re-sent on every later model call. A URL already opened in this run is served from cache.",
 	});
+
+	/**
+	 * Tavily's own schema plus the offset this tool pages with. The backend
+	 * needs no such field; the schema is widened because StructuredTool parses
+	 * the model's arguments with whatever schema the instance carries.
+	 */
+	extract.schema = extract.schema.extend({
+		offset: z
+			.number()
+			.int()
+			.min(0)
+			.optional()
+			.describe(
+				"Character offset to start reading from. A cut result names the offset that continues it; leave it out to read from the start of the page. An offset applies to every URL in the call, so page one document at a time.",
+			),
+	}) as typeof extract.schema;
 	const call = extract._call.bind(extract);
 
 	const cache =
@@ -341,6 +444,12 @@ function createExtractTool(
 		const requested = [...new Set(input.urls as string[])];
 		if (requested.length === 0) return EXTRACT_FAILED;
 
+		// Paging is a local cut over the cached page, so the offset never
+		// belongs in the request — and must not change the cache key, or every
+		// page of the same document would be fetched again.
+		const { offset: rawOffset, ...withoutOffset } = input;
+		const offset = Math.max(0, Math.trunc(rawOffset ?? 0));
+
 		const resolved = new Map<string, ExtractOutcome>();
 		const misses: string[] = [];
 
@@ -351,7 +460,7 @@ function createExtractTool(
 		}
 
 		if (misses.length > 0) {
-			const fetched = await call({ ...input, urls: misses });
+			const fetched = await call({ ...withoutOffset, urls: misses });
 
 			for (const [url, outcome] of attributeExtractions(fetched, misses)) {
 				resolved.set(url, outcome);
@@ -377,7 +486,7 @@ function createExtractTool(
 			}
 		}
 
-		return formatExtractResults(payload);
+		return formatExtractResults(payload, offset);
 	}) as unknown as TavilyExtract["_call"];
 
 	return extract;

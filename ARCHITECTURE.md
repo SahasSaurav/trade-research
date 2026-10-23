@@ -159,6 +159,10 @@ and write it to a state channel. Financials, analyst, market, and the sentiment
 and debate orchestrators are **deep agents** (`createDeepAgent`, `deepagents`);
 the decision and summary agents use `createAgent` (`langchain`).
 
+None of the deep agents mounts the todo-list middleware. The procedure a node
+follows is fixed by its prompt and skill, so the list only restated it — while
+its tool schema and every rewrite of it rode along in each request.
+
 | Agent                         | Built with    | Tools                                                          | Output                  |
 | ----------------------------- | ------------- | -------------------------------------------------------------- | ----------------------- |
 | `financials`                  | deep agent    | reference search + Yahoo tools + `compute_valuation_multiples` | `financialsSchema`      |

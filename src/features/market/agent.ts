@@ -14,7 +14,7 @@ import {
 	createDeepAgent,
 	createSummarizationMiddleware,
 } from "deepagents";
-import { todoListMiddleware, toolStrategy } from "langchain";
+import { toolStrategy } from "langchain";
 
 /** The one skill this agent may read, passed directly so no sibling scan runs. */
 const SKILL_DIR = `${SKILLS_ROOT}/market`;
@@ -53,7 +53,6 @@ function createMarketAgent(deps: {
 		systemPrompt: MARKET_SYSTEM_PROMPT,
 		responseFormat: toolStrategy(marketSchema),
 		middleware: [
-			todoListMiddleware(),
 			// Explicit: deepagents waits for 85% of a published window and for a
 			// fixed 170k tokens when the model has none, which no local model
 			// reaches before overflowing. Evicted history lands in .cache/.

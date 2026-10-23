@@ -5,7 +5,7 @@ import { sentimentResearchSchema } from "@src/features/sentiment/schema.js";
 import { createGeopoliticalSubagent } from "@src/features/sentiment/subagents/geopolitical/agent.js";
 import { createNewsSentimentSubagent } from "@src/features/sentiment/subagents/news-sentiment/agent.js";
 import { createDeepAgent } from "deepagents";
-import { todoListMiddleware, toolStrategy } from "langchain";
+import { toolStrategy } from "langchain";
 
 /**
  * One orchestrator over two native subagents. Each subagent owns its identity,
@@ -24,7 +24,6 @@ function createSentimentAgent(deps: {
 		model: deps.model,
 		systemPrompt: SENTIMENT_SYSTEM_PROMPT,
 		responseFormat: toolStrategy(sentimentResearchSchema),
-		middleware: [todoListMiddleware()],
 		subagents: [
 			createNewsSentimentSubagent(deps),
 			createGeopoliticalSubagent(deps),

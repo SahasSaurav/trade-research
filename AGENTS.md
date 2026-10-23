@@ -109,7 +109,7 @@ createDeepAgent({
 	tools: [search, computeValuationMultiples], // optional
 	systemPrompt: FINANCIALS_SYSTEM_PROMPT,
 	responseFormat: toolStrategy(financialsSchema), // structured output
-	middleware: [todoListMiddleware()], // progress scaffolding
+	middleware: [compact], // explicit compaction; no todo tool
 	backend: new FilesystemBackend({ rootDir: REPO_ROOT, virtualMode: true }),
 	skills: [`${SKILL_DIR}/`], // this agent's one skill
 	permissions: SKILL_PERMISSIONS, // read-only inside the skill folder

@@ -4,7 +4,7 @@ import { debateSchema } from "@src/features/debate/schema.js";
 import { createBearSubagent } from "@src/features/debate/subagents/bear/agent.js";
 import { createBullSubagent } from "@src/features/debate/subagents/bull/agent.js";
 import { createDeepAgent } from "deepagents";
-import { todoListMiddleware, toolStrategy } from "langchain";
+import { toolStrategy } from "langchain";
 
 /**
  * One orchestrator over two native subagents. Each subagent owns its identity,
@@ -17,7 +17,6 @@ function createDebateAgent(deps: { model: BaseChatModel }) {
 		model: deps.model,
 		systemPrompt: DEBATE_SYSTEM_PROMPT,
 		responseFormat: toolStrategy(debateSchema),
-		middleware: [todoListMiddleware()],
 		subagents: [createBullSubagent(deps), createBearSubagent(deps)],
 	});
 }

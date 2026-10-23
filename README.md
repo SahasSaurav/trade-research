@@ -59,20 +59,22 @@ then prints the report.
 
 All via environment variables (`.env`); see `.env.example` for defaults.
 
-| Variable                    | Default                  | Meaning                                            |
-| --------------------------- | ------------------------ | -------------------------------------------------- |
-| `MODEL_PROVIDER`            | `ollama`                 | `ollama` \| `openai` \| `xai` \| `google-genai`    |
-| `MODEL_NAME`                | `llama3.2`               | Provider model id                                  |
-| `MODEL_TEMPERATURE`         | `0.7`                    | Shared by every agent                              |
-| `OLLAMA_BASE_URL`           | `http://localhost:11434` | Local Ollama endpoint                              |
-| `OLLAMA_NUM_CTX`            | unset                    | Context window override                            |
-| `TAVILY_API_KEY`            | —                        | Search                                             |
-| `SEARCH_REFERENCE_*`        | `5 / 1 / advanced`       | `MAX_RESULTS` / `CHUNKS_PER_SOURCE` / `DEPTH`      |
-| `SEARCH_NEWS_*`             | `5 / month`              | `MAX_RESULTS` / `TIME_RANGE` (a fallback)          |
-| `BUDGET_ANALYST_ATTEMPTS`   | `2`                      | Repair rounds (0 disables)                         |
-| `BUDGET_RESEARCH_ATTEMPTS`  | `3`                      | Sentiment attempts, transient errors only          |
-| `CONTEXT_DB_PATH`           | unset                    | SQLite store: page cache, run record, crash resume |
-| `CONTEXT_DB_PAGE_TTL_HOURS` | `12`                     | `open_url` cache lifetime (0 = run record only)    |
+| Variable                         | Default                  | Meaning                                            |
+| -------------------------------- | ------------------------ | -------------------------------------------------- |
+| `MODEL_PROVIDER`                 | `ollama`                 | `ollama` \| `openai` \| `xai` \| `google-genai`    |
+| `MODEL_NAME`                     | `llama3.2`               | Provider model id                                  |
+| `MODEL_TEMPERATURE`              | `0.7`                    | Shared by every agent                              |
+| `OLLAMA_BASE_URL`                | `http://localhost:11434` | Local Ollama endpoint                              |
+| `OLLAMA_NUM_CTX`                 | unset                    | Context window override                            |
+| `TAVILY_API_KEY`                 | —                        | Search                                             |
+| `SEARCH_REFERENCE_*`             | `5 / 1 / advanced`       | `MAX_RESULTS` / `CHUNKS_PER_SOURCE` / `DEPTH`      |
+| `SEARCH_NEWS_*`                  | `5 / month`              | `MAX_RESULTS` / `TIME_RANGE` (a fallback)          |
+| `BUDGET_ANALYST_ATTEMPTS`        | `2`                      | Repair rounds (0 disables)                         |
+| `BUDGET_RESEARCH_ATTEMPTS`       | `3`                      | Sentiment attempts, transient errors only          |
+| `CONTEXT_DB_PATH`                | unset                    | SQLite store: page cache, run record, crash resume |
+| `CONTEXT_DB_PAGE_TTL_HOURS`      | `12`                     | `open_url` cache lifetime (0 = run record only)    |
+| `CONTEXT_SUMMARY_TRIGGER_TOKENS` | `60000`                  | Transcript tokens before a research agent compacts |
+| `CONTEXT_KEEP_MESSAGES`          | `6`                      | Messages kept verbatim after a compaction          |
 
 ## Docker
 

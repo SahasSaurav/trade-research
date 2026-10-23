@@ -65,6 +65,22 @@ const AppConfigSchema = z.object({
 		researchAttempts: z.coerce.number().int().min(1).max(5).default(3),
 	}),
 	/**
+	 * Where the deep research agents compact their transcript.
+	 *
+	 * A research run re-sends its whole transcript on every turn, so compaction
+	 * only pays for itself if it happens before the window is nearly full. The
+	 * trigger is in tokens rather than a window fraction because the models that
+	 * need it most publish no window at all: deepagents falls back to a fixed
+	 * 170k tokens for those, which a local model overflows long before. Set this
+	 * to roughly 40% of OLLAMA_NUM_CTX for a local model; a frontier model can
+	 * keep the default.
+	 */
+	context: z.object({
+		summaryTriggerTokens: z.coerce.number().int().min(1_000).default(60_000),
+		/** Messages kept verbatim after a compaction; everything older is summarised. */
+		keepMessages: z.coerce.number().int().min(1).default(6),
+	}),
+	/**
 	 * The SQLite context store. Off unless a path is given.
 	 *
 	 * A cache that outlives the process changes what the next run sees, so
@@ -128,6 +144,10 @@ function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
 		budgets: {
 			analystAttempts: env.BUDGET_ANALYST_ATTEMPTS,
 			researchAttempts: env.BUDGET_RESEARCH_ATTEMPTS,
+		},
+		context: {
+			summaryTriggerTokens: env.CONTEXT_SUMMARY_TRIGGER_TOKENS,
+			keepMessages: env.CONTEXT_KEEP_MESSAGES,
 		},
 		store: {
 			path: env.CONTEXT_DB_PATH,

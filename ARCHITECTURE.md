@@ -173,6 +173,23 @@ the decision and summary agents use `createAgent` (`langchain`).
 | `decision`                    | `createAgent` | none                                                           | `decisionSchema`        |
 | `summary`                     | `createAgent` | none                                                           | summary prose           |
 
+### Compaction
+
+The three research agents (`financials`, `analyst`, `market`) compact their own
+transcript with `createSummarizationMiddleware`: once the run passes
+`CONTEXT_SUMMARY_TRIGGER_TOKENS` (60k by default) everything older than the last
+`CONTEXT_KEEP_MESSAGES` (6) messages is summarised. The threshold is explicit
+because the built-in one is a fraction of a published window — and a fixed 170k
+tokens when the model publishes none, which is every local Ollama model, so on a
+small `OLLAMA_NUM_CTX` it never fires before the request overflows. Triggering in
+tokens is the one number that means the same thing for both. Evicted messages go
+to `.cache/conversation-history/` (gitignored, beside the page cache) instead of
+the repository root deepagents defaults to. `sentiment` and `debate` keep the
+default: they delegate rather than read, so their transcript stays small.
+
+Compaction is transport, not judgment — it drops the conversation, never the
+structured artifact or its source URLs.
+
 ### Ownership boundaries
 
 Each fact and each decision has exactly one owner; a downstream agent may weigh

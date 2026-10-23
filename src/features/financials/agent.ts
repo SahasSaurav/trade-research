@@ -15,7 +15,11 @@ import {
 	SKILLS_ROOT,
 } from "@src/workflows/skills.js";
 import type { FilesystemPermission } from "deepagents";
-import { FilesystemBackend, createDeepAgent } from "deepagents";
+import {
+	FilesystemBackend,
+	createDeepAgent,
+	createSummarizationMiddleware,
+} from "deepagents";
 import { todoListMiddleware, toolStrategy } from "langchain";
 
 /** The one skill this agent may read, passed directly so no sibling scan runs. */
@@ -31,7 +35,14 @@ function createFinancialsAgent(deps: {
 	model: BaseChatModel;
 	search: TavilySearch;
 	extract: TavilyExtract;
+	/** When to compact the transcript, and how much to keep verbatim. */
+	compaction: { triggerTokens: number; keepMessages: number };
 }) {
+	const backend = new FilesystemBackend({
+		rootDir: REPO_ROOT,
+		virtualMode: true,
+	});
+
 	return createDeepAgent({
 		model: deps.model,
 		tools: [
@@ -49,8 +60,19 @@ function createFinancialsAgent(deps: {
 		],
 		systemPrompt: FINANCIALS_SYSTEM_PROMPT,
 		responseFormat: toolStrategy(financialsSchema),
-		middleware: [todoListMiddleware()],
-		backend: new FilesystemBackend({ rootDir: REPO_ROOT, virtualMode: true }),
+		middleware: [
+			todoListMiddleware(),
+			// Explicit: deepagents waits for 85% of a published window and for a
+			// fixed 170k tokens when the model has none, which no local model
+			// reaches before overflowing. Evicted history lands in .cache/.
+			createSummarizationMiddleware({
+				backend,
+				historyPathPrefix: "/.cache/conversation-history",
+				trigger: { type: "tokens", value: deps.compaction.triggerTokens },
+				keep: { type: "messages", value: deps.compaction.keepMessages },
+			}),
+		],
+		backend,
 		skills: [`${SKILL_DIR}/`],
 		permissions: SKILL_PERMISSIONS,
 	});

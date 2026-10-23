@@ -247,6 +247,41 @@ describe("loadConfig budgets", () => {
 	});
 });
 
+describe("loadConfig context", () => {
+	it("defaults to a compaction that fires before a frontier window fills", () => {
+		expect(loadConfig(env()).context).toEqual({
+			summaryTriggerTokens: 60_000,
+			keepMessages: 6,
+		});
+	});
+
+	it("reads the threshold and the kept messages from the environment", () => {
+		const config = loadConfig(
+			env({
+				CONTEXT_SUMMARY_TRIGGER_TOKENS: "8000",
+				CONTEXT_KEEP_MESSAGES: "3",
+			}),
+		);
+
+		expect(config.context).toEqual({
+			summaryTriggerTokens: 8000,
+			keepMessages: 3,
+		});
+	});
+
+	it("rejects a threshold a single tool result would exceed", () => {
+		expect(() =>
+			loadConfig(env({ CONTEXT_SUMMARY_TRIGGER_TOKENS: "10" })),
+		).toThrow(ConfigError);
+	});
+
+	it("rejects keeping no messages, which would drop the current turn", () => {
+		expect(() => loadConfig(env({ CONTEXT_KEEP_MESSAGES: "0" }))).toThrow(
+			ConfigError,
+		);
+	});
+});
+
 describe("loadConfig store", () => {
 	it("defaults to no persistent store", () => {
 		// A cache that outlives the process changes what a second run sees, so

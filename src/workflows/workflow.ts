@@ -202,18 +202,44 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 			cache: pageCache,
 		});
 
+	/**
+	 * The three research agents compact against the same budget, so a run
+	 * truncates the same way whichever branch fills up first. Sentiment and
+	 * debate are left on deepagents' defaults: they delegate rather than read,
+	 * so their transcript stays small by construction.
+	 */
+	const compaction = {
+		triggerTokens: config.context.summaryTriggerTokens,
+		keepMessages: config.context.keepMessages,
+	};
+
 	const financialsAgent =
 		deps.agents?.financials ??
-		createFinancialsAgent({ model, search: referenceSearch, extract });
+		createFinancialsAgent({
+			model,
+			search: referenceSearch,
+			extract,
+			compaction,
+		});
 	const analystAgent =
 		deps.agents?.analyst ??
-		createAnalystAgent({ model, search: referenceSearch, extract });
+		createAnalystAgent({
+			model,
+			search: referenceSearch,
+			extract,
+			compaction,
+		});
 	const sentimentAgent =
 		deps.agents?.sentiment ??
 		createSentimentAgent({ model, search: newsSearch, extract });
 	const marketAgent =
 		deps.agents?.market ??
-		createMarketAgent({ model, search: referenceSearch, extract });
+		createMarketAgent({
+			model,
+			search: referenceSearch,
+			extract,
+			compaction,
+		});
 	const debateAgent = deps.agents?.debate ?? createDebateAgent({ model });
 	const decisionAgent = deps.agents?.decision ?? createDecisionAgent({ model });
 	const summaryAgent = deps.agents?.summary ?? createSummaryAgent({ model });

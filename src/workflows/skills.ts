@@ -4,8 +4,15 @@ import { findProjectRoot } from "deepagents";
 /** Virtual mount for the repo's skills tree, under the backend root. */
 const SKILLS_ROOT = "/skills";
 
-/** Read-only filesystem tools for a skill reader; `read_file` is mandatory. */
-const SKILL_TOOLS = ["ls", "read_file", "glob", "grep"] as const;
+/**
+ * The only filesystem tool a skill reader gets.
+ *
+ * A skill and its `references/` files are read by path — nothing lists, searches
+ * or writes them — and every tool schema is re-sent on every model call, so the
+ * other seven deepagents ships (ls, write_file, edit_file, delete, glob, grep,
+ * execute) would be paid for on every turn without ever being called.
+ */
+const SKILL_TOOLS = ["read_file"] as const;
 
 /**
  * Everything outside a skill's own folder is read-and-write denied. The same

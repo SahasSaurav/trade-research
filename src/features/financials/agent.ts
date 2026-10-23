@@ -9,15 +9,18 @@ import {
 	yahooStatements,
 } from "@src/features/financials/tool.js";
 import { yahooQuote } from "@src/features/market/tool.js";
+import { COMPACTION_SUMMARY_PROMPT } from "@src/utils/compaction.js";
 import {
 	DENY_OUTSIDE_SKILL_FOLDER,
 	REPO_ROOT,
 	SKILLS_ROOT,
+	SKILL_TOOLS,
 } from "@src/workflows/skills.js";
-import type { FilesystemPermission } from "deepagents";
+import type { BackendProtocolV2, FilesystemPermission } from "deepagents";
 import {
 	FilesystemBackend,
 	createDeepAgent,
+	createFilesystemMiddleware,
 	createSummarizationMiddleware,
 } from "deepagents";
 import { toolStrategy } from "langchain";
@@ -37,8 +40,12 @@ function createFinancialsAgent(deps: {
 	extract: TavilyExtract;
 	/** When to compact the transcript, and how much to keep verbatim. */
 	compaction: { triggerTokens: number; keepMessages: number };
+	/** Where evicted turns go; the skill backend answers when unset. */
+	history?: BackendProtocolV2;
+	/** A cheaper model for the summary; this agent's own when unset. */
+	summarizer?: BaseChatModel;
 }) {
-	const backend = new FilesystemBackend({
+	const files = new FilesystemBackend({
 		rootDir: REPO_ROOT,
 		virtualMode: true,
 	});
@@ -61,19 +68,28 @@ function createFinancialsAgent(deps: {
 		systemPrompt: FINANCIALS_SYSTEM_PROMPT,
 		responseFormat: toolStrategy(financialsSchema),
 		middleware: [
+			// Replaces deepagents' default stack, which mounts seven tools this
+			// agent never calls; the skill is read by path.
+			createFilesystemMiddleware({
+				backend: files,
+				tools: SKILL_TOOLS,
+				permissions: SKILL_PERMISSIONS,
+			}),
 			// Explicit: deepagents waits for 85% of a published window and for a
 			// fixed 170k tokens when the model has none, which no local model
-			// reaches before overflowing. Evicted history lands in .cache/.
+			// reaches before overflowing. The prompt keeps the figures, because
+			// compaction runs before the artifact is written.
 			createSummarizationMiddleware({
-				backend,
+				model: deps.summarizer,
+				backend: deps.history ?? files,
 				historyPathPrefix: "/.cache/conversation-history",
+				summaryPrompt: COMPACTION_SUMMARY_PROMPT,
 				trigger: { type: "tokens", value: deps.compaction.triggerTokens },
 				keep: { type: "messages", value: deps.compaction.keepMessages },
 			}),
 		],
-		backend,
+		backend: files,
 		skills: [`${SKILL_DIR}/`],
-		permissions: SKILL_PERMISSIONS,
 	});
 }
 

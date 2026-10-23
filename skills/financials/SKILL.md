@@ -47,6 +47,14 @@ A filing is long, so `open_url` returns it in slices: the result states the
 character range and the offset that continues it. Page only until you have the
 line you came for, then stop — reading a 10-K end to end costs more than the run.
 
+**Record a figure the moment you read it.** A long run is compacted mid-flight:
+older turns are replaced by a summary before you write the artifact, and a number
+that only ever lived inside a tool result can be gone by then. So as soon as you
+have a value you mean to emit, state it in your own words with its unit, period
+and source URL — "revenue 638,959 million, FY2025, <url>" — instead of planning to
+re-read the page later. The artifact is written from what survives, not from what
+you once saw.
+
 Yahoo is one vendor, not the truth. Every figure the skill marks as
 reconciliation-sensitive still needs a second source. Where Yahoo and a filing
 disagree by more than the tolerance in Step 8, follow the rule and record the

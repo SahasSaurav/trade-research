@@ -52,6 +52,12 @@ skill does: within ±1% use the average, beyond that flag the conflict in `notes
 source is a page you opened with `open_url`, not a snippet and not a second opinion on the
 indicators.
 
+**Record each level the moment you read it.** A long run is compacted mid-flight: older turns
+are replaced by a summary before you write the artifact, and a price that only ever lived inside
+a tool result can be gone by then. As soon as you have a value you mean to emit — indicator,
+level, price, timestamp — state it in your own words with its source URL instead of planning to
+re-read the page later.
+
 If a data tool answers `DATA_UNAVAILABLE` / `NO_DATA_AVAILABLE`, fall back to `search` plus
 `open_url`, set the values you could not verify to `null`, and say so in `notes`.
 

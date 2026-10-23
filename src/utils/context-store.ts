@@ -26,6 +26,12 @@ import Database from "better-sqlite3";
  * the graph depends on them — a run with the store disabled produces identical
  * artifacts, which is what keeps runs reproducible.
  *
+ * `history` is the conversation a research agent's summarizer replaced, one row
+ * per document. It is offloaded transport, not evidence: the artifact and its
+ * cited URLs are the output, and the history exists so the audit trail includes
+ * what was dropped and an operator can read it back. With the store off, the
+ * middleware writes the same document to a file under `.cache/` instead.
+ *
  * `checkpoints` and `writes` are LangGraph's own tables, created by its SQLite
  * saver on the same file. They are what makes a crashed run resumable: the
  * nodes that already ran are not paid for twice. They are transient — a run
@@ -114,6 +120,22 @@ CREATE TABLE IF NOT EXISTS artifacts (
 
 CREATE UNIQUE INDEX IF NOT EXISTS artifacts_live_branch
 	ON artifacts(run_id, branch) WHERE deleted_at IS NULL;
+
+-- The conversation a summarizer replaced, one row per history path. Same kind
+-- of thing as a cached page: derived, re-readable, and only useful while the
+-- run that wrote it is still worth resuming. The path is the virtual one the
+-- middleware names, so a second compaction appends to the same document.
+CREATE TABLE IF NOT EXISTS history (
+	id         TEXT PRIMARY KEY,
+	path       TEXT    NOT NULL,
+	content    TEXT    NOT NULL,
+	created_at INTEGER NOT NULL,
+	updated_at INTEGER NOT NULL,
+	deleted_at INTEGER
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS history_live_path
+	ON history(path) WHERE deleted_at IS NULL;
 `;
 
 type ContextStoreOptions = {
@@ -135,9 +157,29 @@ type RunRecord = {
 	artifacts: Record<string, unknown>;
 };
 
+/** One offloaded conversation document, without its body. */
+type HistoryEntry = {
+	path: string;
+	bytes: number;
+	createdAt: number;
+	updatedAt: number;
+};
+
 type ContextStore = {
 	/** The `open_url` cache, backed by the `pages` table. */
 	pageCache<T>(): UrlCache<T>;
+	/**
+	 * The conversation a research agent's summarizer replaced with a summary.
+	 * The agent never reads it back through a tool — it exists so the run can
+	 * be audited and an operator can see what was dropped, and so the history
+	 * lives in the same file as everything else the run derived.
+	 */
+	history: {
+		read(path: string): string | undefined;
+		write(path: string, content: string): void;
+		/** Entries whose path starts with `prefix`, newest first. */
+		list(prefix: string): HistoryEntry[];
+	};
 	/** Records a finished run and its artifacts in one transaction. */
 	recordRun(run: RunRecord): void;
 	close(): void;
@@ -283,10 +325,45 @@ function openContextStore(options: ContextStoreOptions): ContextStore {
 		 DO UPDATE SET payload    = excluded.payload,
 		               updated_at = excluded.updated_at`,
 	);
+	const selectHistory = db.prepare(
+		"SELECT content FROM history WHERE path = ? AND deleted_at IS NULL",
+	);
+	const upsertHistory = db.prepare(
+		`INSERT INTO history
+		 (id, path, content, created_at, updated_at, deleted_at)
+		 VALUES (?, ?, ?, ?, ?, NULL)
+		 ON CONFLICT(path) WHERE deleted_at IS NULL
+		 DO UPDATE SET content    = excluded.content,
+		               updated_at = excluded.updated_at`,
+	);
+	// `substr` rather than `LIKE`: a path is data, and `%` or `_` inside one
+	// must not turn into a wildcard.
+	const listHistory = db.prepare(
+		`SELECT path,
+		        length(content) AS bytes,
+		        created_at     AS createdAt,
+		        updated_at     AS updatedAt
+		 FROM history
+		 WHERE substr(path, 1, length(?)) = ? AND deleted_at IS NULL
+		 ORDER BY updated_at DESC, rowid DESC`,
+	);
 
 	return {
 		pageCache<T>(): UrlCache<T> {
 			return sqlitePageCache<T>(db, options.pageTtlMs, maxPageEntries);
+		},
+		history: {
+			read(path) {
+				const row = selectHistory.get(path) as { content: string } | undefined;
+				return row?.content;
+			},
+			write(path, content) {
+				const now = Date.now();
+				upsertHistory.run(randomUUID(), path, content, now, now);
+			},
+			list(prefix) {
+				return listHistory.all(prefix, prefix) as HistoryEntry[];
+			},
 		},
 		recordRun(run) {
 			const now = Date.now();
@@ -359,5 +436,11 @@ function checkpointThreadId(ticker: string, at = new Date()): string {
 	return `${ticker.toUpperCase()}:${day}`;
 }
 
-export type { CheckpointStore, ContextStore, ContextStoreOptions, RunRecord };
+export type {
+	CheckpointStore,
+	ContextStore,
+	ContextStoreOptions,
+	HistoryEntry,
+	RunRecord,
+};
 export { checkpointThreadId, openCheckpointSaver, openContextStore };

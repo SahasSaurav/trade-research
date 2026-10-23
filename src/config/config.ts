@@ -1,5 +1,29 @@
 import { z } from "zod";
 
+/** The provider ids `MODEL_PROVIDER` accepts. */
+const PROVIDERS = ["google-genai", "openai", "ollama", "xai"] as const;
+
+/**
+ * `provider/model`, or a bare model id that keeps the default provider.
+ *
+ * The split happens only when the first segment names a provider, so a model id
+ * that itself contains a slash — `meta-llama/Llama-3-8b` — stays whole instead
+ * of being read as a provider called `meta-llama`.
+ */
+const MODEL_REF = z
+	.string()
+	.min(1)
+	.transform((value) => {
+		const slash = value.indexOf("/");
+		const provider = PROVIDERS.find((known) => known === value.slice(0, slash));
+		return provider
+			? { provider, name: value.slice(slash + 1) }
+			: { provider: undefined, name: value };
+	})
+	.refine((ref) => ref.name.length > 0, {
+		message: "a model reference needs a model id after the provider",
+	});
+
 const AppConfigSchema = z.object({
 	app: z.object({
 		name: z.string().min(1).default("trade-research"),
@@ -79,6 +103,12 @@ const AppConfigSchema = z.object({
 		summaryTriggerTokens: z.coerce.number().int().min(1_000).default(60_000),
 		/** Messages kept verbatim after a compaction; everything older is summarised. */
 		keepMessages: z.coerce.number().int().min(1).default(6),
+		/**
+		 * The model that writes the summary, when it should not be the agent's
+		 * own. Summarising is reading and rewriting text, not judgment, so a
+		 * cheap model is usually the right one; unset inherits `MODEL_*`.
+		 */
+		summarizerModel: MODEL_REF.optional(),
 	}),
 	/**
 	 * The SQLite context store. Off unless a path is given.
@@ -148,6 +178,7 @@ function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
 		context: {
 			summaryTriggerTokens: env.CONTEXT_SUMMARY_TRIGGER_TOKENS,
 			keepMessages: env.CONTEXT_KEEP_MESSAGES,
+			summarizerModel: env.CONTEXT_SUMMARIZER_MODEL,
 		},
 		store: {
 			path: env.CONTEXT_DB_PATH,

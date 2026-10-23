@@ -280,6 +280,48 @@ describe("loadConfig context", () => {
 			ConfigError,
 		);
 	});
+
+	it("keeps the summarizer on the shared model unless one is named", () => {
+		expect(loadConfig(env()).context.summarizerModel).toBeUndefined();
+	});
+
+	it("reads a bare summarizer model id on the default provider", () => {
+		const config = loadConfig(env({ CONTEXT_SUMMARIZER_MODEL: "llama3.2:1b" }));
+
+		expect(config.context.summarizerModel).toEqual({
+			provider: undefined,
+			name: "llama3.2:1b",
+		});
+	});
+
+	it("reads a provider-qualified summarizer model", () => {
+		const config = loadConfig(
+			env({ CONTEXT_SUMMARIZER_MODEL: "openai/gpt-5-mini" }),
+		);
+
+		expect(config.context.summarizerModel).toEqual({
+			provider: "openai",
+			name: "gpt-5-mini",
+		});
+	});
+
+	it("leaves a model id containing a slash whole", () => {
+		// `meta-llama` is not a provider, so the slash belongs to the id.
+		const config = loadConfig(
+			env({ CONTEXT_SUMMARIZER_MODEL: "meta-llama/Llama-3-8b" }),
+		);
+
+		expect(config.context.summarizerModel).toEqual({
+			provider: undefined,
+			name: "meta-llama/Llama-3-8b",
+		});
+	});
+
+	it("rejects a provider with no model after it", () => {
+		expect(() =>
+			loadConfig(env({ CONTEXT_SUMMARIZER_MODEL: "openai/" })),
+		).toThrow(ConfigError);
+	});
 });
 
 describe("loadConfig store", () => {

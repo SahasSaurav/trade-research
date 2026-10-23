@@ -104,6 +104,7 @@ everything:
 | `pages`                  | The `open_url` cache: key, payload, `updated_at` (fetch time)   |
 | `runs`                   | One finished run: ticker, `started_at`, status, provider, model |
 | `artifacts`              | One row per branch artifact of that run, as JSON                |
+| `history`                | The conversation a summarizer replaced, one row per document    |
 | `checkpoints` + `writes` | LangGraph's own schema, written by its SQLite saver             |
 
 Two drivers sit on the file, deliberately: `node:sqlite` for the cache and the
@@ -186,10 +187,35 @@ transcript with `createSummarizationMiddleware`: once the run passes
 because the built-in one is a fraction of a published window — and a fixed 170k
 tokens when the model publishes none, which is every local Ollama model, so on a
 small `OLLAMA_NUM_CTX` it never fires before the request overflows. Triggering in
-tokens is the one number that means the same thing for both. Evicted messages go
-to `.cache/conversation-history/` (gitignored, beside the page cache) instead of
-the repository root deepagents defaults to. `sentiment` and `debate` keep the
-default: they delegate rather than read, so their transcript stays small.
+tokens is the one number that means the same thing for both. `sentiment` and
+`debate` keep the default: they delegate rather than read, so their transcript
+stays small.
+
+Compaction bounds growth; it does not make a turn cheaper. Every turn still
+re-sends the whole transcript that fits inside the window, so the levers are the
+size of the items in it:
+
+- `open_url` pages a long document in a 12k-character window with the offset that
+  continues it, so the largest single item in a transcript is bounded.
+- The three research agents mount their own filesystem middleware with
+  `read_file` as its only tool. A skill and its `references/` are read by path,
+  and every tool schema rides in every request, so the other seven deepagents
+  ships would be paid for on every turn without being called.
+
+The summary is written with a project prompt (`src/utils/compaction.ts`), not the
+library's "concise summary": compaction runs before `structuredResponse`, so a
+figure it drops is a figure the run can no longer report. The prompt keeps every
+figure verbatim with its unit, period and source URL, forbids rounding or
+inventing one, and the skills add the matching rule — record a value as you read
+it rather than planning to re-read the page later. A cheaper model can write the
+summary (`CONTEXT_SUMMARIZER_MODEL`); unset uses the agent's own.
+
+Evicted messages are offloaded, never merged into the artifact. With
+`CONTEXT_DB_PATH` set they go to the store's `history` table (one row per
+document, through a backend adapter, so the run's derived state is one file);
+without it they go to `.cache/conversation-history/` (gitignored, beside the page
+cache) instead of the repository root deepagents defaults to. Either way the
+history is derived data: nothing in the graph reads it back.
 
 Compaction is transport, not judgment — it drops the conversation, never the
 structured artifact or its source URLs.

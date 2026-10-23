@@ -16,6 +16,7 @@ import {
 } from "@src/features/search/tool.js";
 import { createSentimentAgent } from "@src/features/sentiment/agent.js";
 import { createSummaryAgent } from "@src/features/summary/agent.js";
+import { createHistoryBackend } from "@src/utils/compaction.js";
 import {
 	type CheckpointStore,
 	type ContextStore,
@@ -88,22 +89,29 @@ function openCheckpoints(
 }
 
 /**
- * One model instance is shared by every agent, so anything dropped here is
- * dropped pipeline-wide. Every branch must therefore pass temperature
- * explicitly: a `temperature || default` shortcut reads as correct and
- * silently ignores MODEL_TEMPERATURE on the providers it misses.
+ * One model client, on the shared model unless a reference overrides it.
+ *
+ * Every branch must pass temperature explicitly: a `temperature || default`
+ * shortcut reads as correct and silently ignores MODEL_TEMPERATURE on the
+ * providers it misses.
  */
-function createModel(config: Config): BaseChatModel {
-	switch (config.model.provider) {
+function createModel(
+	config: Config,
+	override?: { provider?: Config["model"]["provider"]; name: string },
+): BaseChatModel {
+	const provider = override?.provider ?? config.model.provider;
+	const name = override?.name ?? config.model.name;
+
+	switch (provider) {
 		case "openai":
 			return new ChatOpenAI({
-				model: config.model.name,
+				model: name,
 				apiKey: config.openai.apiKey,
 				temperature: config.model.temperature,
 			});
 		case "xai":
 			return new ChatOpenAI({
-				model: config.model.name,
+				model: name,
 				apiKey: config.xai.apiKey,
 				temperature: config.model.temperature,
 				configuration: {
@@ -112,13 +120,13 @@ function createModel(config: Config): BaseChatModel {
 			});
 		case "google-genai":
 			return new ChatGoogle({
-				model: config.model.name,
+				model: name,
 				apiKey: config.google.apiKey,
 				temperature: config.model.temperature,
 			});
 		default:
 			return new ChatOllama({
-				model: config.model.name,
+				model: name,
 				baseUrl: config.ollama.baseUrl,
 				temperature: config.model.temperature,
 				numCtx: config.ollama.numCtx,
@@ -213,6 +221,22 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 		keepMessages: config.context.keepMessages,
 	};
 
+	/**
+	 * Compaction's own model, when one is configured. Summarising is text
+	 * rewriting rather than judgment, so a cheaper model is the usual choice;
+	 * unset lets each agent summarise with the model it runs on.
+	 */
+	const summarizer = config.context.summarizerModel
+		? createModel(config, config.context.summarizerModel)
+		: undefined;
+
+	/**
+	 * Evicted conversations go into the store when it is open, so everything a
+	 * run derives lives in one file; otherwise the middleware writes the same
+	 * document under `.cache/` through the agent's own backend.
+	 */
+	const history = store ? createHistoryBackend(store.history) : undefined;
+
 	const financialsAgent =
 		deps.agents?.financials ??
 		createFinancialsAgent({
@@ -220,6 +244,8 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 			search: referenceSearch,
 			extract,
 			compaction,
+			history,
+			summarizer,
 		});
 	const analystAgent =
 		deps.agents?.analyst ??
@@ -228,6 +254,8 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 			search: referenceSearch,
 			extract,
 			compaction,
+			history,
+			summarizer,
 		});
 	const sentimentAgent =
 		deps.agents?.sentiment ??
@@ -239,6 +267,8 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 			search: referenceSearch,
 			extract,
 			compaction,
+			history,
+			summarizer,
 		});
 	const debateAgent = deps.agents?.debate ?? createDebateAgent({ model });
 	const decisionAgent = deps.agents?.decision ?? createDecisionAgent({ model });

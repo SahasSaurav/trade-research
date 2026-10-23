@@ -60,6 +60,12 @@ A firm that appears in Yahoo's action list with a date and a target is a strong
 lead: you know the note exists and roughly when. It is still a lead — search for
 the note itself so the row carries a real URL and a real thesis.
 
+**Record each report the moment you verify it.** A long run is compacted
+mid-flight: older turns are replaced by a summary before you write the artifact,
+and a rating that only ever lived inside a tool result can be gone by then. As
+soon as a row is verified, state it in your own words — firm, rating, target,
+date, URL and the one-line thesis — instead of planning to re-read the page later.
+
 ### Step 2: Confirm the issuer (NOT merely cited)
 
 **Verification rule:** The firm must have issued the research directly. News articles citing a report are secondary; the original source is primary.

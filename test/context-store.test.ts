@@ -274,6 +274,63 @@ describe("context store pages", () => {
 	});
 });
 
+describe("context store history", () => {
+	it("keeps offloaded history in the same file as the rest of the run", () => {
+		const path = tempPath();
+		const historyPath = "/.cache/conversation-history/AMZN:2026-10-23.md";
+
+		const first = open(path);
+		first.history.write(historyPath, "revenue 638,959 million, FY2025");
+		first.close();
+
+		// A re-run reads back what the summarizer dropped, in the same file as
+		// the pages, the run record and the checkpoints.
+		expect(open(path).history.read(historyPath)).toBe(
+			"revenue 638,959 million, FY2025",
+		);
+	});
+
+	it("stamps a history row with its bookkeeping", () => {
+		const path = tempPath();
+		open(path).history.write("/h/a.md", "body");
+
+		const db = read(path);
+		try {
+			const row = db
+				.prepare(
+					"SELECT id, created_at, updated_at, deleted_at FROM history WHERE path = ?",
+				)
+				.get("/h/a.md") as {
+				id: string;
+				created_at: number;
+				updated_at: number;
+				deleted_at: number | null;
+			};
+
+			expect(row.id).toEqual(expect.any(String));
+			expect(row.created_at).toEqual(expect.any(Number));
+			expect(row.updated_at).toBe(row.created_at);
+			expect(row.deleted_at).toBeNull();
+		} finally {
+			db.close();
+		}
+	});
+
+	it("lists a prefix literally, not as a LIKE pattern", () => {
+		const store = open(tempPath());
+		store.history.write("/h/a.md", "a");
+		store.history.write("/h/b.md", "b");
+		// A path is data: `%` in it must not turn into a wildcard.
+		store.history.write("/h%x/c.md", "c");
+
+		expect(store.history.list("/h/").map((entry) => entry.path)).toEqual([
+			"/h/b.md",
+			"/h/a.md",
+		]);
+		expect(store.history.list("/h%")).toHaveLength(1);
+	});
+});
+
 describe("context store checkpoints", () => {
 	it("puts the checkpointer on the same file as the cache", () => {
 		const path = tempPath();

@@ -93,10 +93,11 @@ function openCheckpoints(
  * can change provider as well as model, and every agent keeps its own factory
  * call — nothing here is assembled by a loop over names.
  */
-function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
+async function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 	const config = loadConfig();
 
-	const model = deps.model ?? createModel(config);
+	// Async because `initChatModel` resolves the provider package dynamically.
+	const model = deps.model ?? (await createModel(config));
 
 	/**
 	 * Off unless CONTEXT_DB_PATH names a file. A cache that outlives the
@@ -186,7 +187,7 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 	 * unset lets each agent summarise with the model it runs on.
 	 */
 	const summarizer = config.context.summarizerModel
-		? createModel(config, config.context.summarizerModel)
+		? await createModel(config, config.context.summarizerModel)
 		: undefined;
 
 	/**
@@ -203,25 +204,25 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 	 * is what dispatches it.
 	 */
 	const financialsModel = config.agents.financials
-		? createModel(config, config.agents.financials)
+		? await createModel(config, config.agents.financials)
 		: model;
 	const analystModel = config.agents.analyst
-		? createModel(config, config.agents.analyst)
+		? await createModel(config, config.agents.analyst)
 		: model;
 	const marketModel = config.agents.market
-		? createModel(config, config.agents.market)
+		? await createModel(config, config.agents.market)
 		: model;
 	const sentimentModel = config.agents.sentiment
-		? createModel(config, config.agents.sentiment)
+		? await createModel(config, config.agents.sentiment)
 		: model;
 	const debateModel = config.agents.debate
-		? createModel(config, config.agents.debate)
+		? await createModel(config, config.agents.debate)
 		: model;
 	const decisionModel = config.agents.decision
-		? createModel(config, config.agents.decision)
+		? await createModel(config, config.agents.decision)
 		: model;
 	const summaryModel = config.agents.summary
-		? createModel(config, config.agents.summary)
+		? await createModel(config, config.agents.summary)
 		: model;
 
 	const financialsAgent =

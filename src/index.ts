@@ -11,7 +11,7 @@ const ticker = "AMZN";
 
 const startedAt = Date.now();
 const runId = randomUUID();
-const { workflow, store, checkpoints, runMeta } = createWorkflow();
+const { workflow, store, checkpoints, runMeta } = await createWorkflow();
 
 // A run resumes on its ticker and its day, so a crash mid-way is picked up by
 // the next invocation instead of re-paying every node that already completed.

@@ -413,18 +413,25 @@ after it.
 
 ## Configuration and providers
 
-`src/config/config.ts` validates the environment with zod. `createProviderClient`
-(`src/utils/provider.ts`) builds a chat client for one provider id, switching on
-`MODEL_PROVIDER`:
+`src/config/config.ts` validates the environment with zod. `createModel`
+(`src/utils/model.ts`) hands a `provider:model` spec to LangChain's
+`initChatModel`, which resolves and imports the provider package — the repo
+imports no provider SDK itself. `src/utils/provider.ts` translates the config's
+provider id into that spec:
 
-- `openai` → `ChatOpenAI`
-- `xai` → `ChatOpenAI` with `baseURL: https://api.x.ai/v1`
-- `google-genai` → `ChatGoogle`
-- default → `ChatOllama`
+- `openai` → `openai:...` (`ChatOpenAI`)
+- `xai` → `openai:...` with `baseURL: https://api.x.ai/v1` — xAI speaks the
+  OpenAI protocol, so it reuses that client instead of adding `@langchain/xai`
+- `google-genai` → `google:...` (`ChatGoogle`, from `@langchain/google`; the
+  `google-genai` spec would import a package this repo does not depend on)
+- default → `ollama:...` (`ChatOllama`)
+
+Because the provider package is resolved with a dynamic import, `createModel` is
+async and so is `createWorkflow`; `index.ts` awaits it.
 
 One client is built for the shared model and reused by every branch that does not
-name its own. `createModel` (`src/utils/model.ts`) is what turns a model reference
-into a client: the shared `MODEL_PROVIDER`/`MODEL_NAME`, or a branch reference.
+name its own. `createModel` is what turns a model reference into a client: the
+shared `MODEL_PROVIDER`/`MODEL_NAME`, or a branch reference.
 `MODEL_<AGENT>` (`MODEL_FINANCIALS`, `MODEL_ANALYST`,
 `MODEL_MARKET`, `MODEL_SENTIMENT`, `MODEL_DEBATE`, `MODEL_DECISION`,
 `MODEL_SUMMARY`) overrides a single top-level agent, as `provider/model` or a bare

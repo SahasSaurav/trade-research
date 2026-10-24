@@ -18,7 +18,7 @@ describe("workflow wiring", () => {
 		try {
 			// Construction only: no agent is invoked, so this costs no model
 			// calls. What it pins is that the env var reaches both handles.
-			const { store, checkpoints } = createWorkflow();
+			const { store, checkpoints } = await createWorkflow();
 			expect(store).not.toBeNull();
 			expect(checkpoints).not.toBeNull();
 

@@ -2,23 +2,23 @@ import type { BaseChatModel } from "@langchain/core/language_models/chat_models"
 import {
 	createAnalystNode,
 	createAnalystRepairNode,
-} from "@src/features/analyst/node.js";
-import type { AnalystReportData } from "@src/features/analyst/schema.js";
-import { createDebateNode } from "@src/features/debate/node.js";
-import type { DebateData } from "@src/features/debate/schema.js";
-import { createBearSubagent } from "@src/features/debate/subagents/bear/agent.js";
-import type { BearCase } from "@src/features/debate/subagents/bear/schema.js";
-import { createBullSubagent } from "@src/features/debate/subagents/bull/agent.js";
-import type { BullCase } from "@src/features/debate/subagents/bull/schema.js";
-import { createDecisionNode } from "@src/features/decision/node.js";
-import type { DecisionData } from "@src/features/decision/schema.js";
-import { createFinancialsNode } from "@src/features/financials/node.js";
-import type { FinancialsData } from "@src/features/financials/schema.js";
-import { createMarketNode } from "@src/features/market/node.js";
-import type { MarketData } from "@src/features/market/schema.js";
-import type { SentimentData } from "@src/features/sentiment/schema.js";
-import { createSummaryNode } from "@src/features/summary/node.js";
-import { createValidationNode } from "@src/features/validation/node.js";
+} from "@src/agents/analyst/node.js";
+import type { AnalystReportData } from "@src/agents/analyst/schema.js";
+import { createDebateNode } from "@src/agents/debate/node.js";
+import type { DebateData } from "@src/agents/debate/schema.js";
+import { createBearSubagent } from "@src/agents/debate/subagents/bear/agent.js";
+import type { BearCase } from "@src/agents/debate/subagents/bear/schema.js";
+import { createBullSubagent } from "@src/agents/debate/subagents/bull/agent.js";
+import type { BullCase } from "@src/agents/debate/subagents/bull/schema.js";
+import { createDecisionNode } from "@src/agents/decision/node.js";
+import type { DecisionData } from "@src/agents/decision/schema.js";
+import { createFinancialsNode } from "@src/agents/financials/node.js";
+import type { FinancialsData } from "@src/agents/financials/schema.js";
+import { createMarketNode } from "@src/agents/market/node.js";
+import type { MarketData } from "@src/agents/market/schema.js";
+import type { SentimentData } from "@src/agents/sentiment/schema.js";
+import { createSummaryNode } from "@src/agents/summary/node.js";
+import { createValidationNode } from "@src/agents/validation/node.js";
 import type { GraphState } from "@src/workflows/state.js";
 import type { AgentTypeConfig, ReactAgent } from "langchain";
 import { describe, expect, it } from "vitest";

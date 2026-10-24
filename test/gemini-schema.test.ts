@@ -1,15 +1,15 @@
 import { createRequire } from "node:module";
 import path from "node:path";
 
-import { analystReportSchema } from "@src/features/analyst/schema.js";
-import { debateSchema } from "@src/features/debate/schema.js";
-import { decisionSchema } from "@src/features/decision/schema.js";
-import { financialsSchema } from "@src/features/financials/schema.js";
-import { computeValuationMultiples } from "@src/features/financials/tool.js";
-import { sentimentSchema } from "@src/features/sentiment/schema.js";
-import { geopoliticalResearchSchema } from "@src/features/sentiment/subagents/geopolitical/schema.js";
-import { newsSentimentResearchSchema } from "@src/features/sentiment/subagents/news-sentiment/schema.js";
-import { summarySchema } from "@src/features/summary/schema.js";
+import { analystReportSchema } from "@src/agents/analyst/schema.js";
+import { debateSchema } from "@src/agents/debate/schema.js";
+import { decisionSchema } from "@src/agents/decision/schema.js";
+import { financialsSchema } from "@src/agents/financials/schema.js";
+import { computeValuationMultiples } from "@src/agents/financials/tool.js";
+import { sentimentSchema } from "@src/agents/sentiment/schema.js";
+import { geopoliticalResearchSchema } from "@src/agents/sentiment/subagents/geopolitical/schema.js";
+import { newsSentimentResearchSchema } from "@src/agents/sentiment/subagents/news-sentiment/schema.js";
+import { summarySchema } from "@src/agents/summary/schema.js";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 

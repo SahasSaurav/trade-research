@@ -1,5 +1,5 @@
 import { loadConfig } from "@src/config/config.js";
-import { createModel } from "@src/workflows/workflow.js";
+import { createModel } from "@src/utils/model.js";
 import { describe, expect, it } from "vitest";
 
 /**

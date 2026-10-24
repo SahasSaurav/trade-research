@@ -1,21 +1,18 @@
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
-import { ChatGoogle } from "@langchain/google";
-import { ChatOllama } from "@langchain/ollama";
-import { ChatOpenAI } from "@langchain/openai";
 import type { TavilyExtract, TavilySearch } from "@langchain/tavily";
-import { loadConfig } from "@src/config/config.js";
-import { createAnalystAgent } from "@src/features/analyst/agent.js";
-import { createDebateAgent } from "@src/features/debate/agent.js";
-import { createDecisionAgent } from "@src/features/decision/agent.js";
-import { createFinancialsAgent } from "@src/features/financials/agent.js";
-import { createMarketAgent } from "@src/features/market/agent.js";
+import { createAnalystAgent } from "@src/agents/analyst/agent.js";
+import { createDebateAgent } from "@src/agents/debate/agent.js";
+import { createDecisionAgent } from "@src/agents/decision/agent.js";
+import { createFinancialsAgent } from "@src/agents/financials/agent.js";
+import { createMarketAgent } from "@src/agents/market/agent.js";
 import {
 	createExtractTool,
 	createSearchTool,
 	type ExtractedPage,
-} from "@src/features/search/tool.js";
-import { createSentimentAgent } from "@src/features/sentiment/agent.js";
-import { createSummaryAgent } from "@src/features/summary/agent.js";
+} from "@src/agents/search/tool.js";
+import { createSentimentAgent } from "@src/agents/sentiment/agent.js";
+import { createSummaryAgent } from "@src/agents/summary/agent.js";
+import { loadConfig } from "@src/config/config.js";
 import { createHistoryBackend } from "@src/utils/compaction.js";
 import {
 	type CheckpointStore,
@@ -24,6 +21,7 @@ import {
 	openContextStore,
 } from "@src/utils/context-store.js";
 import { errorMessage } from "@src/utils/errors.js";
+import { createModel } from "@src/utils/model.js";
 import { createGraph, type GraphAgents } from "@src/workflows/graph.js";
 
 type WorkflowDeps = {
@@ -89,51 +87,12 @@ function openCheckpoints(
 }
 
 /**
- * One model client, on the shared model unless a reference overrides it.
+ * The pipeline, wired: config, model clients, tools, agents, store and graph.
  *
- * Every branch must pass temperature explicitly: a `temperature || default`
- * shortcut reads as correct and silently ignores MODEL_TEMPERATURE on the
- * providers it misses.
+ * Every branch gets its own `createModel` call so a `MODEL_<AGENT>` override
+ * can change provider as well as model, and every agent keeps its own factory
+ * call — nothing here is assembled by a loop over names.
  */
-function createModel(
-	config: Config,
-	override?: { provider?: Config["model"]["provider"]; name: string },
-): BaseChatModel {
-	const provider = override?.provider ?? config.model.provider;
-	const name = override?.name ?? config.model.name;
-
-	switch (provider) {
-		case "openai":
-			return new ChatOpenAI({
-				model: name,
-				apiKey: config.openai.apiKey,
-				temperature: config.model.temperature,
-			});
-		case "xai":
-			return new ChatOpenAI({
-				model: name,
-				apiKey: config.xai.apiKey,
-				temperature: config.model.temperature,
-				configuration: {
-					baseURL: "https://api.x.ai/v1",
-				},
-			});
-		case "google-genai":
-			return new ChatGoogle({
-				model: name,
-				apiKey: config.google.apiKey,
-				temperature: config.model.temperature,
-			});
-		default:
-			return new ChatOllama({
-				model: name,
-				baseUrl: config.ollama.baseUrl,
-				temperature: config.model.temperature,
-				numCtx: config.ollama.numCtx,
-			});
-	}
-}
-
 function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 	const config = loadConfig();
 
@@ -351,4 +310,4 @@ function createWorkflow(deps: Partial<WorkflowDeps> = {}) {
 }
 
 export type { WorkflowDeps };
-export { createModel, createWorkflow };
+export { createWorkflow };

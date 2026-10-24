@@ -3,7 +3,7 @@ import {
 	checkTickerShape,
 	normalizeTicker,
 	validateTicker,
-} from "@src/features/ticker/validate.js";
+} from "@src/agents/ticker/validate.js";
 import { describe, expect, it, vi } from "vitest";
 
 function fakeSearch(response: unknown) {

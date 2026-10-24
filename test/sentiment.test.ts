@@ -1,9 +1,9 @@
-import { createSentimentNode } from "@src/features/sentiment/node.js";
+import { createSentimentNode } from "@src/agents/sentiment/node.js";
 import type {
 	SentimentData,
 	SentimentResearchData,
-} from "@src/features/sentiment/schema.js";
-import { scoreSentimentSources } from "@src/features/sentiment/score.js";
+} from "@src/agents/sentiment/schema.js";
+import { scoreSentimentSources } from "@src/agents/sentiment/score.js";
 import type { GraphState } from "@src/workflows/state.js";
 import type { AgentTypeConfig, ReactAgent } from "langchain";
 import { describe, expect, it } from "vitest";

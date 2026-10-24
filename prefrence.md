@@ -26,12 +26,12 @@ agent catalogue are in [AGENTS.md](AGENTS.md); system design in
 
 ## Architecture
 
-- Feature-based folders: `src/features/<feature>/{agent,node,prompt,schema,tool}.ts`.
+- One folder per agent: `src/agents/<agent>/{agent,node,prompt,schema,tool}.ts`.
 - Vendor and data helpers live in `src/utils/` (`src/utils/yahoo/` for the
   Yahoo payload helpers, `src/utils/indicators.ts` for the pure technical
   indicators), not as a feature — they are shared plumbing, not an agent. The
   agent-facing tools stay in the feature that calls them, one `tool.ts` per
-  feature (e.g. `src/features/market/tool.ts`).
+  feature (e.g. `src/agents/market/tool.ts`).
 - Agents return **structured output** via `responseFormat: toolStrategy(schema)`;
   nodes read `result.structuredResponse`.
 - Orchestration stays in the explicit `StateGraph` — keep it deterministic and

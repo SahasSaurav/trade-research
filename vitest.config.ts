@@ -22,7 +22,7 @@ export default defineConfig({
 			// regression fails the run rather than being noticed later. They do
 			// not currently: a clean run measures ~93.5 stmts / 79.7 branches /
 			// 96.5 funcs / 94.4 lines, so the run fails on all four. The gap is
-			// src/features/ticker/node.ts (untested) and ticker/validate.ts, plus
+			// src/agents/ticker/node.ts (untested) and ticker/validate.ts, plus
 			// partial coverage of trader/node.ts, report/render.ts and
 			// workflows/graph.ts.
 			thresholds: {

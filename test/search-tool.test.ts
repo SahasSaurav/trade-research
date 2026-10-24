@@ -6,7 +6,7 @@ import {
 	createExtractTool,
 	createSearchTool,
 	normalizeSearchQuery,
-} from "@src/features/search/tool.js";
+} from "@src/agents/search/tool.js";
 import { describe, expect, it } from "vitest";
 
 /**

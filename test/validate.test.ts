@@ -1,4 +1,4 @@
-import { validateArtifacts } from "@src/features/validation/validate.js";
+import { validateArtifacts } from "@src/agents/validation/validate.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const TODAY = new Date().toISOString().slice(0, 10);

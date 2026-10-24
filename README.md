@@ -123,7 +123,7 @@ src/
     workflow.ts                builds model, tools, agents
     state.ts                   WorkflowState channels
     skills.ts                  skill constants (root, tools, permissions)
-  features/
+  agents/
     ticker/                    ticker validation node
     financials/                deep agent — multiples + statements + insiders
     analyst/                   deep agent + repair node
@@ -149,7 +149,7 @@ skills/
 
 Every research agent splits its instructions in two:
 
-- the **system prompt** (`src/features/<feature>/prompt.ts`) holds the contract —
+- the **system prompt** (`src/agents/<agent>/prompt.ts`) holds the contract —
   role, scope, hard rules and guardrails;
 - the **skill** (`skills/<name>/SKILL.md`) holds the procedure — search strategy,
   source hierarchy, verification steps, output contract and worked examples;

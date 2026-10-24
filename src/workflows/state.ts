@@ -1,13 +1,13 @@
 import { Annotation } from "@langchain/langgraph";
-import type { AnalystReportData } from "@src/features/analyst/schema.js";
-import type { DebateData } from "@src/features/debate/schema.js";
-import type { DecisionData } from "@src/features/decision/schema.js";
-import type { FinancialsData } from "@src/features/financials/schema.js";
-import type { MarketData } from "@src/features/market/schema.js";
-import type { SentimentData } from "@src/features/sentiment/schema.js";
-import type { SummaryData } from "@src/features/summary/schema.js";
-import type { TickerValidation } from "@src/features/ticker/validate.js";
-import type { ValidationResult } from "@src/features/validation/validate.js";
+import type { AnalystReportData } from "@src/agents/analyst/schema.js";
+import type { DebateData } from "@src/agents/debate/schema.js";
+import type { DecisionData } from "@src/agents/decision/schema.js";
+import type { FinancialsData } from "@src/agents/financials/schema.js";
+import type { MarketData } from "@src/agents/market/schema.js";
+import type { SentimentData } from "@src/agents/sentiment/schema.js";
+import type { SummaryData } from "@src/agents/summary/schema.js";
+import type { TickerValidation } from "@src/agents/ticker/validate.js";
+import type { ValidationResult } from "@src/agents/validation/validate.js";
 
 const WorkflowState = Annotation.Root({
 	ticker: Annotation<string>,

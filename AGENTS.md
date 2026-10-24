@@ -27,12 +27,13 @@ plain `createAgent`.
 
 Invariants the pipeline depends on — do not break these:
 
-- Feature-based folders: `src/features/<feature>/{agent,node,prompt,schema,tool}.ts`.
+- One folder per agent: `src/agents/<agent>/{agent,node,prompt,schema,tool}.ts`.
 - Vendor and data helpers live in `src/utils/` (`src/utils/yahoo/` for the
   Yahoo payload helpers, `src/utils/indicators.ts` for the pure technical
-  indicators), not as a feature — they are shared plumbing, not an agent. The
+  indicators, `src/utils/provider.ts` and `src/utils/model.ts` for the chat
+  clients), not as a feature — they are shared plumbing, not an agent. The
   agent-facing tools stay in the feature that calls them, one `tool.ts` per
-  feature (e.g. `src/features/market/tool.ts`).
+  feature (e.g. `src/agents/market/tool.ts`).
 - Agents return **structured output** via `responseFormat: toolStrategy(schema)`;
   nodes read `result.structuredResponse`.
 - Orchestration stays in the explicit `StateGraph` — keep it deterministic.
@@ -51,19 +52,19 @@ handling, and deep-agent preferences — live in [prefrence.md](prefrence.md).
 
 ## The agents
 
-| Agent            | Path                                               | Built with                       | Tools                                                                                                     | Role                                           |
-| ---------------- | -------------------------------------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| **financials**   | `src/features/financials/`                         | `createDeepAgent`                | reference search + `open_url`, `compute_valuation_multiples`, Yahoo quote/fundamentals/statements/insider | Valuation multiples + statements, insiders     |
-| **analyst**      | `src/features/analyst/`                            | `createDeepAgent`                | reference search + `open_url`, Yahoo consensus                                                            | Sell-side consensus, targets, ratings          |
-| **sentiment**    | `src/features/sentiment/`                          | `createDeepAgent` (orchestrator) | none — delegates to subagents                                                                             | Merged sentiment artifact                      |
-| ↳ news-sentiment | `src/features/sentiment/subagents/news-sentiment/` | `createAgent` (native subagent)  | news search + `open_url`                                                                                  | Recent news tone                               |
-| ↳ geopolitical   | `src/features/sentiment/subagents/geopolitical/`   | `createAgent` (native subagent)  | news search + `open_url`                                                                                  | Geopolitical / macro risk                      |
-| **market**       | `src/features/market/`                             | `createDeepAgent`                | reference search + `open_url`, Yahoo quote/technicals                                                     | Technicals: trend, levels, indicators          |
-| **debate**       | `src/features/debate/`                             | `createDeepAgent` (orchestrator) | none — delegates to subagents                                                                             | Bull vs. bear over the evidence                |
-| ↳ bull           | `src/features/debate/subagents/bull/`              | `createAgent` (native subagent)  | none                                                                                                      | Bull case + its risk posture                   |
-| ↳ bear           | `src/features/debate/subagents/bear/`              | `createAgent` (native subagent)  | none                                                                                                      | Bear case; rebuts the bull, + its risk posture |
-| **decision**     | `src/features/decision/`                           | `createAgent`                    | none                                                                                                      | Call + fair value + execution plan             |
-| **summary**      | `src/features/summary/`                            | `createAgent`                    | none                                                                                                      | Prose analyst note                             |
+| Agent            | Path                                             | Built with                       | Tools                                                                                                     | Role                                           |
+| ---------------- | ------------------------------------------------ | -------------------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| **financials**   | `src/agents/financials/`                         | `createDeepAgent`                | reference search + `open_url`, `compute_valuation_multiples`, Yahoo quote/fundamentals/statements/insider | Valuation multiples + statements, insiders     |
+| **analyst**      | `src/agents/analyst/`                            | `createDeepAgent`                | reference search + `open_url`, Yahoo consensus                                                            | Sell-side consensus, targets, ratings          |
+| **sentiment**    | `src/agents/sentiment/`                          | `createDeepAgent` (orchestrator) | none — delegates to subagents                                                                             | Merged sentiment artifact                      |
+| ↳ news-sentiment | `src/agents/sentiment/subagents/news-sentiment/` | `createAgent` (native subagent)  | news search + `open_url`                                                                                  | Recent news tone                               |
+| ↳ geopolitical   | `src/agents/sentiment/subagents/geopolitical/`   | `createAgent` (native subagent)  | news search + `open_url`                                                                                  | Geopolitical / macro risk                      |
+| **market**       | `src/agents/market/`                             | `createDeepAgent`                | reference search + `open_url`, Yahoo quote/technicals                                                     | Technicals: trend, levels, indicators          |
+| **debate**       | `src/agents/debate/`                             | `createDeepAgent` (orchestrator) | none — delegates to subagents                                                                             | Bull vs. bear over the evidence                |
+| ↳ bull           | `src/agents/debate/subagents/bull/`              | `createAgent` (native subagent)  | none                                                                                                      | Bull case + its risk posture                   |
+| ↳ bear           | `src/agents/debate/subagents/bear/`              | `createAgent` (native subagent)  | none                                                                                                      | Bear case; rebuts the bull, + its risk posture |
+| **decision**     | `src/agents/decision/`                           | `createAgent`                    | none                                                                                                      | Call + fair value + execution plan             |
+| **summary**      | `src/agents/summary/`                            | `createAgent`                    | none                                                                                                      | Prose analyst note                             |
 
 ### Deep agents vs shallow agents
 
@@ -133,7 +134,7 @@ createDeepAgent({
 - **Prompt holds the contract, skill holds the procedure.** Every agent that does
   research (financials, analyst, market, and the news-sentiment and geopolitical
   subagents) keeps its role, scope, hard rules and guardrails in
-  `src/features/<feature>/prompt.ts`, and the how-to — search strategy, sources,
+  `src/agents/<agent>/prompt.ts`, and the how-to — search strategy, sources,
   verification, grading, field rules, examples — in `skills/<name>/SKILL.md`, read
   from disk at runtime under a read-only filesystem confined to that agent's own
   folder. Deep tables live in the `references/` files beside it. Folder name must
